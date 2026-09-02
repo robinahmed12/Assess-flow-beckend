@@ -3,7 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import { notFoundHandler } from "./app/common/middleware/not-found.middleware";
 import { globalErrorHandler } from "./app/common/middleware/error.middleware";
-
+import authRouter from "./modules/auth/auth.routes";
 
 const app: Application = express();
 
@@ -27,6 +27,8 @@ app.get("/api/v1/health", (_req: Request, res: Response) => {
     },
   });
 });
+
+app.use("/api/v1/auth", authRouter);
 
 
 /*
