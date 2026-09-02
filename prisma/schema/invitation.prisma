@@ -7,17 +7,21 @@ model Invitation {
 
   status InvitationStatus @default(PENDING)
 
-  expiresAt DateTime
+  expiresAt DateTime?
 
   assessmentId String
   assessment   Assessment @relation(fields: [assessmentId], references: [id])
 
   attempt Attempt?
+  candidateId    String
+  candidate      User     @relation(fields: [candidateId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+
   @@index([token])
   @@index([assessmentId])
   @@index([candidateEmail])
+  @@unique([assessmentId, candidateId])
 }

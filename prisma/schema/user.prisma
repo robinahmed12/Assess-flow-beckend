@@ -23,6 +23,7 @@ model User {
   auditLogs   AuditLog[]
   assessments Assessment[]
   problems    Problem[]
+  invitations Invitation[]
 
   @@index([email])
   @@index([role])
