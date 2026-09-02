@@ -1,0 +1,18 @@
+model AssessmentProblem {
+  id String @id @default(uuid())
+
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  problemId String
+  problem   Problem @relation(fields: [problemId], references: [id])
+
+  order Int
+
+  createdAt DateTime @default(now())
+
+  @@unique([assessmentId, problemId])
+  @@unique([assessmentId, order])
+  @@index([assessmentId])
+  @@index([problemId])
+}

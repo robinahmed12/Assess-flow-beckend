@@ -1,0 +1,22 @@
+model Payment {
+  id String @id @default(uuid())
+
+  amount Float
+
+  creditsPurchased Int
+
+  status PaymentStatus @default(PENDING)
+
+  stripeSessionId String? @unique
+
+  stripePaymentIntentId String? @unique
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([status])
+}

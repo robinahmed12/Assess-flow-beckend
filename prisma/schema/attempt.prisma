@@ -1,0 +1,30 @@
+model Attempt {
+  id String @id @default(uuid())
+
+  status AttemptStatus @default(IN_PROGRESS)
+
+  startedAt DateTime
+  expiresAt DateTime
+
+  submittedAt DateTime?
+
+  score Float @default(0)
+
+  percentage Float?
+
+  passed Boolean?
+
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id])
+
+  invitationId String     @unique
+  invitation   Invitation @relation(fields: [invitationId], references: [id])
+
+  answers Answer[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([assessmentId])
+  @@index([status])
+}

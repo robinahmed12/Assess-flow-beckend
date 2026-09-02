@@ -1,0 +1,19 @@
+model Company {
+  id   String @id @default(uuid())
+  name String
+  slug String @unique
+
+  credits Int @default(0)
+
+  ownerId String @unique
+  owner   User   @relation(fields: [ownerId], references: [id])
+
+  problems    Problem[]
+  assessments Assessment[]
+  payments    Payment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}

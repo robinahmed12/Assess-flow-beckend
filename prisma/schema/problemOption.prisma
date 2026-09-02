@@ -1,0 +1,14 @@
+model ProblemOption {
+  id String @id @default(uuid())
+
+  text String
+
+  isCorrect Boolean @default(false)
+
+  problemId String
+  problem   Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([problemId])
+}

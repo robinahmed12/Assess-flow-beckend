@@ -1,0 +1,23 @@
+model Invitation {
+  id String @id @default(uuid())
+
+  token String @unique
+
+  candidateEmail String
+
+  status InvitationStatus @default(PENDING)
+
+  expiresAt DateTime
+
+  assessmentId String
+  assessment   Assessment @relation(fields: [assessmentId], references: [id])
+
+  attempt Attempt?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([token])
+  @@index([assessmentId])
+  @@index([candidateEmail])
+}

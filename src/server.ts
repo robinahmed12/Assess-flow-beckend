@@ -1,6 +1,6 @@
 
 import app from "./app";
-import config from "./config";
+import config from "./app/config";
 import { prisma } from "./lib/prisma";
 
 
