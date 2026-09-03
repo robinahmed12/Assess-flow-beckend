@@ -1,8 +1,8 @@
 import { NextFunction, Request, Response } from "express";
-import { sendResponse } from "../../app/common/utils/sendResponse";
-import { bkashPaymentErrors } from "./bkash-payment.errors";
 import { bkashPaymentService } from "./bkash-payment.service";
 import { AuthenticatedRequest } from "./bkash-payment.types";
+import { bkashPaymentErrors } from "../../app/common/errors/bkash-payment.errors";
+import { sendResponse } from "../../app/common/responses/api-response";
 
 const getAuthUser = (req: AuthenticatedRequest) => {
   if (!req.user?.id) {
@@ -67,7 +67,7 @@ export const bkashPaymentController = {
   async getPaymentById(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const user = getAuthUser(req);
-      const result = await bkashPaymentService.getRecruiterPaymentById(user.id, req.params.id);
+      const result = await bkashPaymentService.getRecruiterPaymentById(user.id, req.params.id as string);
       return sendResponse(res, 200, "Payment retrieved successfully.", result);
     } catch (error) {
       next(error);

@@ -14,6 +14,10 @@ import candidateRouter from "./modules/candidate/candidate.routes";
 import attemptRouter from "./modules/attempt/attempt.routes";
 import evaluationRouter from "./modules/evaluation/evaluation.routes";
 import paymentRouter, { paymentWebhookRouter } from "./modules/payment/payment.routes";
+import { bkashPaymentCallbackRouter, createBkashPaymentRouter } from './modules/bkash-payment';
+import { authorize } from './modules/auth/authorize.middleware';
+import { authenticate } from './modules/auth/auth.middleware';
+import { createAdminRouter } from './modules/admin';
 
 
 const app: Application = express();
@@ -51,6 +55,23 @@ app.use("/api/v1/attempts", attemptRouter);
 app.use("/api/v1/evaluation", evaluationRouter);
 app.use("/api/v1/payments", paymentWebhookRouter);
 app.use("/api/v1/payments", paymentRouter);
+app.use("/api/v1/payments", bkashPaymentCallbackRouter);
+
+app.use(
+  "/api/v1/payments",
+  createBkashPaymentRouter({
+    authenticate,
+    authorizeRecruiter: authorize("RECRUITER"),
+  })
+);
+app.use(
+  "/api/v1/admin",
+  createAdminRouter({
+    authenticate,
+    authorize,
+  })
+);
+
 
 /*
 |--------------------------------------------------------------------------
