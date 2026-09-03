@@ -18,6 +18,8 @@ import { bkashPaymentCallbackRouter, createBkashPaymentRouter } from './modules/
 import { authorize } from './modules/auth/authorize.middleware';
 import { authenticate } from './modules/auth/auth.middleware';
 import { createAdminRouter } from './modules/admin';
+import { swaggerSpec } from './app/config/swagger';
+import swaggerUi from "swagger-ui-express";
 
 
 const app: Application = express();
@@ -59,6 +61,12 @@ app.use("/api/v1/payments", bkashPaymentCallbackRouter);
 
 app.use("/api/v1/payments",createBkashPaymentRouter({ authenticate,authorizeRecruiter: authorize("RECRUITER"),}));
 app.use("/api/v1/admin",createAdminRouter({authenticate,authorize,}));
+app.use(
+	"/api-docs",
+	swaggerUi.serve,
+	swaggerUi.setup(swaggerSpec)
+);
+
 
 
 /*
