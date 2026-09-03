@@ -1,7 +1,8 @@
 import { NextFunction, Request, Response } from "express";
-import { getAuthUser } from "./payment.auth";
+import { getAuthUser } from "../../app/common/middleware/payment.auth";
 import { paymentService } from "./payment.service";
 import { AuthenticatedRequest } from "./payment.types";
+import { sendResponse } from "../../app/common/responses/api-response";
 
 const success = (res: Response, message: string, data: unknown, statusCode = 200) => {
   return res.status(statusCode).json({
@@ -16,7 +17,7 @@ export const paymentController = {
     try {
       const user = getAuthUser(req);
       const result = await paymentService.createCheckoutSession(user.id, req.body.packageCode);
-      return success(res, "Checkout session created successfully.", result, 201);
+      return sendResponse(res, 201, "Checkout session created successfully.", result);
     } catch (error) {
       next(error);
     }
@@ -39,7 +40,7 @@ export const paymentController = {
   async getPaymentById(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const user = getAuthUser(req);
-      const result = await paymentService.getRecruiterPaymentById(user.id, req.params.id);
+      const result = await paymentService.getRecruiterPaymentById(user.id, req.params.id as string);
       return success(res, "Payment retrieved successfully.", result);
     } catch (error) {
       next(error);

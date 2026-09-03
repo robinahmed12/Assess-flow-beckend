@@ -1,6 +1,7 @@
 import { Router } from "express";
-import { authenticateEvaluationRequest } from "./evaluation.auth";
+
 import { evaluationController } from "./evaluation.controller";
+import { authenticateEvaluationRequest } from "../../app/common/middleware/evaluation.auth";
 
 const router = Router();
 

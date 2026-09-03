@@ -1,6 +1,6 @@
 import express from "express";
 import { paymentController } from "./payment.controller";
-import { requireRecruiter } from "./payment.auth";
+import { requireRecruiter } from "../../app/common/middleware/payment.auth";
 import { createCheckoutSchema, listPaymentsSchema, paymentIdParamSchema, validateRequest } from "./payment.validation";
 
 export const paymentWebhookRouter = express.Router();

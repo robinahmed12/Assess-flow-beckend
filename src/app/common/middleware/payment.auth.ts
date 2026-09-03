@@ -1,6 +1,6 @@
 import { NextFunction, Response } from "express";
-import { AuthenticatedRequest, AuthUser } from "./payment.types";
-import { paymentErrors } from "../../app/common/errors/payment.errors";
+import { AuthenticatedRequest, AuthUser } from "../../../modules/payment/payment.types";
+import { paymentErrors } from "../errors/payment.errors";
 
 const normalizeRole = (role: string) => role.toUpperCase();
 

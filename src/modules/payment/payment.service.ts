@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import { prisma } from "../../lib/prisma";
-import { CREDIT_PACKAGES, CreditPackageCode } from "./payment.constants";
+import { CREDIT_PACKAGES, CreditPackageCode } from "../../app/common/utils/payment.constants";
 import { paymentErrors } from "../../app/common/errors/payment.errors";
 
 const getStripe = () => {

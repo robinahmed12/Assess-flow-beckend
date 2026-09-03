@@ -1,5 +1,5 @@
 import { Request } from "express";
-import { CreditPackageCode } from "./payment.constants";
+import { CreditPackageCode } from "../../app/common/utils/payment.constants";
 
 export type AuthUser = {
   id: string;
