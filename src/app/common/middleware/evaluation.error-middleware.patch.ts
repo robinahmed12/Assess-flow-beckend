@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { EvaluationError } from "./evaluation.errors";
+import { EvaluationError } from "../errors/evaluation.errors";
 
 /**
  * OPTIONAL PATCH
