@@ -1,15 +1,15 @@
-import { Request } from "express";
-import { UserRole, UserStatus } from "@prisma/client";
+import { AttemptStatus } from "@prisma/client";
 
-export type AuthUser = {
-  id: string;
-  email: string;
-  role: UserRole;
-  status: UserStatus;
-};
+export interface SubmissionsQuery {
+  page?: number;
+  limit?: number;
+  status?: AttemptStatus;
+  q?: string;
+}
 
-export type EvaluationRequest = Request & {
-  user?: AuthUser;
-};
+export interface EvaluateAnswerInput {
+  score: number;
+  feedback?: string;
+}
 
-export type ProblemTypeValue = "MCQ" | "WRITTEN" | "CODING";
+export type SortOrder = "asc" | "desc";

@@ -57,20 +57,8 @@ app.use("/api/v1/payments", paymentWebhookRouter);
 app.use("/api/v1/payments", paymentRouter);
 app.use("/api/v1/payments", bkashPaymentCallbackRouter);
 
-app.use(
-  "/api/v1/payments",
-  createBkashPaymentRouter({
-    authenticate,
-    authorizeRecruiter: authorize("RECRUITER"),
-  })
-);
-app.use(
-  "/api/v1/admin",
-  createAdminRouter({
-    authenticate,
-    authorize,
-  })
-);
+app.use("/api/v1/payments",createBkashPaymentRouter({ authenticate,authorizeRecruiter: authorize("RECRUITER"),}));
+app.use("/api/v1/admin",createAdminRouter({authenticate,authorize,}));
 
 
 /*

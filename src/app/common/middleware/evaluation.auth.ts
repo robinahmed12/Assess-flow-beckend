@@ -1,6 +1,6 @@
-import { NextFunction, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { EvaluationRequest } from "../../../modules/evaluation/evaluation.types";
+
 import { forbidden, unauthorized } from "../errors/evaluation.errors";
 import { prisma } from "../../../lib/prisma";
 
@@ -17,7 +17,7 @@ import { prisma } from "../../../lib/prisma";
  * middleware in evaluation.routes.ts with your existing one.
  */
 export const authenticateEvaluationRequest = async (
-  req: EvaluationRequest,
+  req: Request,
   _res: Response,
   next: NextFunction
 ) => {
