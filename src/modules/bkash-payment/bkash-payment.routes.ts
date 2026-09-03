@@ -24,19 +24,19 @@ export const createBkashPaymentRouter = ({ authenticate, authorizeRecruiter }: B
     "/checkout",
     authenticate,
     authorizeRecruiter,
-    validateRequest(createBkashPaymentSchema),
+    //validateRequest(createBkashPaymentSchema),
     bkashPaymentController.createCheckout,
   );
 
   router.post(
     "/bkash/execute",
-    validateRequest(executeBkashPaymentSchema),
+   // validateRequest(executeBkashPaymentSchema),
     bkashPaymentController.executePayment,
   );
 
   router.post(
     "/bkash/query",
-    validateRequest(queryBkashPaymentSchema),
+    //validateRequest(queryBkashPaymentSchema),
     bkashPaymentController.queryPayment,
   );
 
@@ -44,7 +44,7 @@ export const createBkashPaymentRouter = ({ authenticate, authorizeRecruiter }: B
     "/",
     authenticate,
     authorizeRecruiter,
-    validateRequest(listPaymentsSchema),
+    //validateRequest(listPaymentsSchema),
     bkashPaymentController.listPayments,
   );
 
@@ -52,7 +52,7 @@ export const createBkashPaymentRouter = ({ authenticate, authorizeRecruiter }: B
     "/:id",
     authenticate,
     authorizeRecruiter,
-    validateRequest(paymentIdParamSchema),
+    //validateRequest(paymentIdParamSchema),
     bkashPaymentController.getPaymentById,
   );
 

@@ -1,8 +1,9 @@
 import { NextFunction, Response } from "express";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { prisma } from "../../lib/prisma";
-import { EvaluationRequest } from "./evaluation.types";
-import { forbidden, unauthorized } from "../../app/common/errors/evaluation.errors";
+import { EvaluationRequest } from "../../../modules/evaluation/evaluation.types";
+import { forbidden, unauthorized } from "../errors/evaluation.errors";
+import { prisma } from "../../../lib/prisma";
+
 
 /**
  * Self-contained auth middleware for this module.

@@ -1,6 +1,8 @@
+import { bkashPaymentErrors } from "../../app/common/errors/bkash-payment.errors";
+import { BKASH_ACTIONS, CREDIT_PACKAGES, CreditPackageCode } from "../../app/common/utils/bkash-payment.constants";
 import { prisma } from "../../lib/prisma";
-import { BKASH_ACTIONS, CREDIT_PACKAGES, CreditPackageCode } from "./bkash-payment.constants";
-import { bkashPaymentErrors } from "./bkash-payment.errors";
+// import { BKASH_ACTIONS, CREDIT_PACKAGES, CreditPackageCode } from "./bkash-payment.constants";
+
 import {
   BkashConfig,
   BkashCreatePaymentResponse,
@@ -170,11 +172,11 @@ export const bkashPaymentService = {
           action: BKASH_ACTIONS.PAYMENT_FAILED,
           entityType: "Payment",
           entityId: payment.id,
-          metadata: {
-            provider: "BKASH_TOKENIZED",
-            packageCode,
-            createResponse,
-          },
+          // metadata: {
+          //   provider: "BKASH_TOKENIZED",
+          //   packageCode,
+          //   createResponse,
+          // },
         },
       });
 
@@ -340,12 +342,12 @@ export const bkashPaymentService = {
         actorId: null,
         action: BKASH_ACTIONS.PAYMENT_QUERY,
         entityType: "Payment",
-        entityId: undefined,
-        metadata: {
-          provider: "BKASH_TOKENIZED",
-          paymentID,
-          queryResponse,
-        },
+        entityId: paymentID,
+        // metadata: {
+        //   provider: "BKASH_TOKENIZED",
+        //   paymentID,
+        //   queryResponse,
+        // },
       },
     });
 
