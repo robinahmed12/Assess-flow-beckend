@@ -11,6 +11,7 @@ import problemRouter from "./modules/problem/problem.routes";
 import assessmentRouter from "./modules/assessment/assessment.routes";
 import invitationRouter from "./modules/invitation/invitation.routes";
 import candidateRouter from "./modules/candidate/candidate.routes";
+import attemptRouter from "./modules/attempt/attempt.routes";
 
 const app: Application = express();
 
@@ -45,6 +46,7 @@ app.use(
   "/api/v1/candidate",
   candidateRouter
 );
+app.use("/api/v1/attempts", attemptRouter);
 
 /*
 |--------------------------------------------------------------------------
