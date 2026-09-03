@@ -12,6 +12,8 @@ import assessmentRouter from "./modules/assessment/assessment.routes";
 import invitationRouter from "./modules/invitation/invitation.routes";
 import candidateRouter from "./modules/candidate/candidate.routes";
 import attemptRouter from "./modules/attempt/attempt.routes";
+import evaluationRouter from "./modules/evaluation/evaluation.routes";
+
 
 const app: Application = express();
 
@@ -42,11 +44,10 @@ app.use("/api/v1/companies", companyRouter);
 app.use("/api/v1/problems", problemRouter);
 app.use("/api/v1/assessments", assessmentRouter);
 app.use("/api/v1/invitations", invitationRouter);
-app.use(
-  "/api/v1/candidate",
-  candidateRouter
+app.use("/api/v1/candidate",candidateRouter
 );
 app.use("/api/v1/attempts", attemptRouter);
+app.use("/api/v1/evaluation", evaluationRouter);
 
 /*
 |--------------------------------------------------------------------------
