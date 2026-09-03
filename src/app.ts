@@ -13,6 +13,7 @@ import invitationRouter from "./modules/invitation/invitation.routes";
 import candidateRouter from "./modules/candidate/candidate.routes";
 import attemptRouter from "./modules/attempt/attempt.routes";
 import evaluationRouter from "./modules/evaluation/evaluation.routes";
+import paymentRouter, { paymentWebhookRouter } from "./modules/payment/payment.routes";
 
 
 const app: Application = express();
@@ -48,6 +49,8 @@ app.use("/api/v1/candidate",candidateRouter
 );
 app.use("/api/v1/attempts", attemptRouter);
 app.use("/api/v1/evaluation", evaluationRouter);
+app.use("/api/v1/payments", paymentWebhookRouter);
+app.use("/api/v1/payments", paymentRouter);
 
 /*
 |--------------------------------------------------------------------------
