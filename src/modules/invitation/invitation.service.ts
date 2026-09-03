@@ -1,15 +1,11 @@
-import {
-  AssessmentStatus,
-  InvitationStatus,
-  UserRole,
-  UserStatus,
-} from "@prisma/client";
+import crypto from "crypto";
 import { prisma } from "../../lib/prisma";
+import { AssessmentStatus, UserRole, UserStatus } from "@prisma/client";
 import { AppError } from "../../app/common/errors/app-error";
 
 interface CreateInvitationInput {
   candidateEmail: string;
-  expiresAt?: Date | string;
+  expiresAt?: string;
 }
 
 export class InvitationService {
@@ -56,6 +52,13 @@ export class InvitationService {
       where: {
         email: data.candidateEmail,
       },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+      },
     });
 
     if (!candidate) {
@@ -70,8 +73,14 @@ export class InvitationService {
       throw new AppError("Candidate account is not active", 400);
     }
 
+    let expiresAt: Date | null = null;
+
     if (data.expiresAt) {
-      const expiresAt = new Date(data.expiresAt);
+      expiresAt = new Date(data.expiresAt);
+
+      if (Number.isNaN(expiresAt.getTime())) {
+        throw new AppError("Invalid invitation expiration date", 400);
+      }
 
       if (expiresAt <= new Date()) {
         throw new AppError("Invitation expiration must be in the future", 400);
@@ -94,12 +103,52 @@ export class InvitationService {
       );
     }
 
+    const token = crypto.randomBytes(32).toString("hex");
+
     return prisma.invitation.create({
       data: {
+        token,
+        candidateEmail: candidate.email,
         assessmentId,
         candidateId: candidate.id,
+        expiresAt,
+      },
+      include: {
+        candidate: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        assessment: {
+          select: {
+            id: true,
+            title: true,
+            duration: true,
+          },
+        },
+      },
+    });
+  }
 
-        expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
+  static async findByAssessment(recruiterId: string, assessmentId: string) {
+    const company = await this.getRecruiterCompany(recruiterId);
+
+    const assessment = await prisma.assessment.findFirst({
+      where: {
+        id: assessmentId,
+        companyId: company.id,
+      },
+    });
+
+    if (!assessment) {
+      throw new AppError("Assessment not found", 404);
+    }
+
+    return prisma.invitation.findMany({
+      where: {
+        assessmentId,
       },
 
       include: {
@@ -111,13 +160,20 @@ export class InvitationService {
           },
         },
 
-        assessment: {
+        attempt: {
           select: {
             id: true,
-            title: true,
-            duration: true,
+            status: true,
+            startedAt: true,
+            expiresAt: true,
+            submittedAt: true,
+            score: true,
           },
         },
+      },
+
+      orderBy: {
+        createdAt: "desc",
       },
     });
   }

@@ -1,3 +1,4 @@
+import { Invitation } from './../node_modules/.prisma/client/index.d';
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -8,6 +9,7 @@ import recruiterRouter from "./modules/recruiter/recruiter.routes";
 import companyRouter from "./modules/company/company.routes";
 import problemRouter from "./modules/problem/problem.routes";
 import assessmentRouter from "./modules/assessment/assessment.routes";
+import invitationRouter from "./modules/invitation/invitation.routes";
 
 const app: Application = express();
 
@@ -36,7 +38,8 @@ app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/recruiters", recruiterRouter);
 app.use("/api/v1/companies", companyRouter);
 app.use("/api/v1/problems", problemRouter);
-app.use("/api/v1/assessments",assessmentRouter);
+app.use("/api/v1/assessments", assessmentRouter);
+app.use("/api/v1/invitations", invitationRouter);
 
 /*
 |--------------------------------------------------------------------------
