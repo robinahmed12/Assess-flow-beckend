@@ -27,4 +27,17 @@ export class InvitationController {
       invitations,
     );
   }
+
+   static async verifyToken(req: Request, res: Response) {
+    const invitation = await InvitationService.verifyInvitationToken(
+      req.params.token as string,
+    );
+
+    return sendResponse(
+      res,
+      200,
+      "Invitation link is valid",
+      invitation
+    );
+  }
 }

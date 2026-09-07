@@ -6,6 +6,7 @@ import { InvitationController } from "./invitation.controller";
 import {
   createInvitationSchema,
   assessmentInvitationIdSchema,
+  invitationTokenSchema,
 } from "./invitation.validation";
 
 import { authenticate } from "../auth/auth.middleware";
@@ -14,6 +15,13 @@ import { validateRequest } from "../../app/common/middleware/validate-request.mi
 import { asyncHandler } from "../../app/common/utils/async-handler";
 
 const router = Router();
+
+router.get(
+  "/verify/:token",
+  validateRequest(invitationTokenSchema),
+  asyncHandler(InvitationController.verifyToken)
+);
+
 
 router.use(authenticate);
 
