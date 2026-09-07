@@ -1,3 +1,4 @@
-export { bkashPaymentCallbackRouter, createBkashPaymentRouter } from "./bkash-payment.routes";
-export { bkashPaymentController } from "./bkash-payment.controller";
-export { bkashPaymentService } from "./bkash-payment.service";
+export { default as bkashPaymentRouter } from "./bkash-payment.routes";
+export { bkashPaymentCallbackRouter } from "./bkash-payment.routes";
+export { BkashPaymentController } from "./bkash-payment.controller";
+export { BkashPaymentService } from "./bkash-payment.service";

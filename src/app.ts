@@ -1,4 +1,4 @@
-import { Invitation } from './../node_modules/.prisma/client/index.d';
+import { Invitation } from "./../node_modules/.prisma/client/index.d";
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -13,14 +13,18 @@ import invitationRouter from "./modules/invitation/invitation.routes";
 import candidateRouter from "./modules/candidate/candidate.routes";
 import attemptRouter from "./modules/attempt/attempt.routes";
 import evaluationRouter from "./modules/evaluation/evaluation.routes";
-import paymentRouter, { paymentWebhookRouter } from "./modules/payment/payment.routes";
-import { bkashPaymentCallbackRouter, createBkashPaymentRouter } from './modules/bkash-payment';
-import { authorize } from './modules/auth/authorize.middleware';
-import { authenticate } from './modules/auth/auth.middleware';
-import { createAdminRouter } from './modules/admin';
-import { swaggerSpec } from './app/config/swagger';
+import paymentRouter, {
+  paymentWebhookRouter,
+} from "./modules/payment/payment.routes";
+import {
+  bkashPaymentCallbackRouter,
+  bkashPaymentRouter,
+} from "./modules/bkash-payment";
+import { authorize } from "./modules/auth/authorize.middleware";
+import { authenticate } from "./modules/auth/auth.middleware";
+import { createAdminRouter } from "./modules/admin";
+import { swaggerSpec } from "./app/config/swagger";
 import swaggerUi from "swagger-ui-express";
-
 
 const app: Application = express();
 
@@ -30,7 +34,7 @@ app.use(
   cors({
     origin: true,
     credentials: true,
-  })
+  }),
 );
 
 app.use(express.json());
@@ -51,23 +55,16 @@ app.use("/api/v1/companies", companyRouter);
 app.use("/api/v1/problems", problemRouter);
 app.use("/api/v1/assessments", assessmentRouter);
 app.use("/api/v1/invitations", invitationRouter);
-app.use("/api/v1/candidate",candidateRouter
-);
+app.use("/api/v1/candidate", candidateRouter);
 app.use("/api/v1/attempts", attemptRouter);
 app.use("/api/v1/evaluation", evaluationRouter);
 app.use("/api/v1/payments", paymentWebhookRouter);
 app.use("/api/v1/payments", paymentRouter);
-app.use("/api/v1/payments", bkashPaymentCallbackRouter);
-
-app.use("/api/v1/payments",createBkashPaymentRouter({ authenticate,authorizeRecruiter: authorize("RECRUITER"),}));
-app.use("/api/v1/admin",createAdminRouter({authenticate,authorize,}));
-app.use(
-	"/api-docs",
-	swaggerUi.serve,
-	swaggerUi.setup(swaggerSpec)
-);
-
-
+app.use("/api/v1/bkash-payments", bkashPaymentCallbackRouter);
+app.use("/api/v1/bkash-payments", bkashPaymentRouter);
+app.use("/api/v1", bkashPaymentCallbackRouter);
+app.use("/api/v1/admin", createAdminRouter({ authenticate, authorize }));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /*
 |--------------------------------------------------------------------------

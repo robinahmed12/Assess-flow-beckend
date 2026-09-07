@@ -1,20 +1,3 @@
-import { Request, RequestHandler } from "express";
-
-export interface AuthenticatedUser {
-  id: string;
-  role: string;
-  email?: string;
-}
-
-export interface AuthenticatedRequest extends Request {
-  user?: AuthenticatedUser;
-}
-
-export interface BkashPaymentRouteDeps {
-  authenticate: RequestHandler;
-  authorizeRecruiter: RequestHandler;
-}
-
 export interface BkashConfig {
   baseUrl: string;
   appKey: string;
@@ -65,6 +48,7 @@ export interface BkashExecutePaymentResponse {
   [key: string]: unknown;
 }
 
-export interface BkashQueryPaymentResponse extends BkashExecutePaymentResponse {
+export interface BkashQueryPaymentResponse
+  extends BkashExecutePaymentResponse {
   paymentCreateTime?: string;
 }
