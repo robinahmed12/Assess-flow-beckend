@@ -13,7 +13,7 @@ A backend-only REST API for creating, managing, delivering, and evaluating techn
 | Live API URL | `TODO: Add deployed API URL` |
 | Repository URL | `TODO: Add repository URL` |
 | Postman Collection | `TODO: Add Postman collection link or file path` |
-| ERD | `TODO: Add ERD image/link` |
+| ERD | [View ERD](#entity-relationship-diagram-erd) |
 | Video Walkthrough | `TODO: Add walkthrough video link` |
 
 ---
@@ -166,6 +166,167 @@ Audit logs should be recorded for critical actions such as:
 - Answer evaluation.
 - Evaluation finalization.
 - Payment success/failure.
+
+
+---
+
+## Entity Relationship Diagram (ERD)
+
+> This is a conceptual ERD based on the API flows and domain rules described in this README. Keep the final column names and constraints aligned with the actual Prisma schema.
+
+```mermaid
+erDiagram
+    USER {
+        uuid id PK
+        string email UK
+        string passwordHash
+        enum role "ADMIN | RECRUITER | CANDIDATE"
+        enum status
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    COMPANY {
+        uuid id PK
+        uuid ownerId FK
+        string name
+        int credits
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    PROBLEM {
+        uuid id PK
+        uuid createdById FK
+        string title
+        enum type "MCQ | WRITTEN | CODING"
+        enum difficulty "EASY | MEDIUM | HARD"
+        decimal points
+        datetime deletedAt
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    ASSESSMENT {
+        uuid id PK
+        uuid companyId FK
+        uuid createdById FK
+        string title
+        int durationMinutes
+        enum status "DRAFT | PUBLISHED | CLOSED | ARCHIVED"
+        enum resultVisibility "IMMEDIATE | AFTER_REVIEW | HIDDEN"
+        decimal passPercentage
+        datetime createdAt
+        datetime updatedAt
+    }
+
+    ASSESSMENT_PROBLEM {
+        uuid assessmentId PK, FK
+        uuid problemId PK, FK
+        int orderIndex
+    }
+
+    INVITATION {
+        uuid id PK
+        uuid assessmentId FK
+        uuid candidateId FK
+        string token UK
+        enum status
+        datetime expiresAt
+        datetime revokedAt
+        datetime createdAt
+    }
+
+    ATTEMPT {
+        uuid id PK
+        uuid invitationId FK
+        uuid candidateId FK
+        enum status
+        datetime startedAt
+        datetime submittedAt
+        datetime expiresAt
+        decimal totalScore
+        decimal percentage
+        boolean passed
+    }
+
+    ANSWER {
+        uuid id PK
+        uuid attemptId FK
+        uuid problemId FK
+        text response
+        decimal awardedScore
+        uuid evaluatedById FK
+        datetime evaluatedAt
+        datetime updatedAt
+    }
+
+    PAYMENT {
+        uuid id PK
+        uuid companyId FK
+        uuid recruiterId FK
+        string providerReference UK
+        enum status
+        decimal amount
+        int creditsGranted
+        datetime createdAt
+        datetime completedAt
+    }
+
+    REFRESH_SESSION {
+        uuid id PK
+        uuid userId FK
+        string tokenHash
+        datetime expiresAt
+        datetime revokedAt
+        datetime createdAt
+    }
+
+    AUDIT_LOG {
+        uuid id PK
+        uuid actorUserId FK
+        string action
+        string entityType
+        uuid entityId
+        json metadata
+        datetime createdAt
+    }
+
+    USER ||--o| COMPANY : owns
+    USER ||--o{ PROBLEM : creates
+    USER ||--o{ ASSESSMENT : creates
+    COMPANY ||--o{ ASSESSMENT : contains
+
+    ASSESSMENT ||--o{ ASSESSMENT_PROBLEM : includes
+    PROBLEM ||--o{ ASSESSMENT_PROBLEM : appears_in
+
+    ASSESSMENT ||--o{ INVITATION : has
+    USER ||--o{ INVITATION : receives
+    INVITATION ||--o| ATTEMPT : starts
+    USER ||--o{ ATTEMPT : takes
+
+    ATTEMPT ||--o{ ANSWER : contains
+    PROBLEM ||--o{ ANSWER : answered_by
+    USER ||--o{ ANSWER : evaluates
+
+    COMPANY ||--o{ PAYMENT : purchases
+    USER ||--o{ PAYMENT : initiates
+
+    USER ||--o{ REFRESH_SESSION : has
+    USER ||--o{ AUDIT_LOG : performs
+```
+
+### Relationship Summary
+
+- A recruiter-owned `COMPANY` can have many assessments and payments.
+- A recruiter can create many `PROBLEM` and `ASSESSMENT` records.
+- `ASSESSMENT` and `PROBLEM` use `ASSESSMENT_PROBLEM` as a many-to-many join table so problems can be ordered inside an assessment.
+- An `ASSESSMENT` can generate many candidate `INVITATION` records.
+- An invitation can create at most one `ATTEMPT`, matching the single-start behavior described for the MVP.
+- An attempt contains many `ANSWER` records, with each answer linked to its problem.
+- Recruiters can manually evaluate written/coding answers, while MCQ scoring can be performed automatically by the application.
+- Successful `PAYMENT` processing grants credits to the related company, with webhook processing kept idempotent.
+- `REFRESH_SESSION` supports refresh-token/session revocation, and `AUDIT_LOG` records critical platform actions.
 
 ---
 
