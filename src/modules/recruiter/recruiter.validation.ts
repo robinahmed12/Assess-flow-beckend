@@ -26,3 +26,20 @@ export const registerRecruiterSchema = z.object({
   params: z.object({}),
   query: z.object({}),
 });
+
+export const verifyRecruiterOtpSchema = z.object({
+  body: z.object({
+    email: z
+      .string()
+      .email("Invalid email address")
+      .transform((email) => email.toLowerCase()),
+
+    otp: z
+      .string()
+      .length(6, "OTP must be 6 digits")
+      .regex(/^\d+$/, "OTP must contain only numbers"),
+  }),
+
+  params: z.object({}),
+  query: z.object({}),
+});

@@ -11,6 +11,10 @@ model Company {
   problems    Problem[]
   assessments Assessment[]
   payments    Payment[]
+  companyLicensePaperUrl       String?
+  companyLicensePaperPublicId  String?
+  selfDocumentUrl              String?
+  selfDocumentPublicId         String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
