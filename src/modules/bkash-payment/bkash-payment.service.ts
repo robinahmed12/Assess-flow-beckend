@@ -5,6 +5,7 @@ import {
   CreditPackageCode,
 } from "../../app/common/utils/bkash-payment.constants";
 import { prisma } from "../../lib/prisma";
+import { PaymentEmailService } from "../payment/payment-email.service";
 
 import {
   BkashConfig,
@@ -13,6 +14,8 @@ import {
   BkashGrantTokenResponse,
   BkashQueryPaymentResponse,
 } from "./bkash-payment.types";
+import { InvoiceService } from "../invoice";
+import { paymentErrors } from "../../app/common/errors/payment.errors";
 
 const SUCCESS_CODE = "0000";
 const COMPLETED_STATUS = "Completed";
@@ -119,11 +122,7 @@ export class BkashPaymentService {
   static async grantToken(forceRefresh = false) {
     const now = Date.now();
 
-    if (
-      !forceRefresh &&
-      cachedToken &&
-      cachedToken.expiresAt > now + 60_000
-    ) {
+    if (!forceRefresh && cachedToken && cachedToken.expiresAt > now + 60_000) {
       return cachedToken.token;
     }
 
@@ -180,20 +179,19 @@ export class BkashPaymentService {
       },
     });
 
-    const createResponse =
-      await this.postToBkash<BkashCreatePaymentResponse>(
-        `${config.baseUrl}/tokenized/checkout/create`,
-        this.getAuthHeaders(config, idToken),
-        {
-          mode: "0011",
-          payerReference: recruiter.email || recruiter.id,
-          callbackURL: config.callbackUrl,
-          amount: selectedPackage.amount.toFixed(2),
-          currency: "BDT",
-          intent: "sale",
-          merchantInvoiceNumber: payment.id,
-        },
-      );
+    const createResponse = await this.postToBkash<BkashCreatePaymentResponse>(
+      `${config.baseUrl}/tokenized/checkout/create`,
+      this.getAuthHeaders(config, idToken),
+      {
+        mode: "0011",
+        payerReference: recruiter.email || recruiter.id,
+        callbackURL: config.callbackUrl,
+        amount: selectedPackage.amount.toFixed(2),
+        currency: "BDT",
+        intent: "sale",
+        merchantInvoiceNumber: payment.id,
+      },
+    );
 
     if (
       !this.isBkashSuccess(createResponse) ||
@@ -266,63 +264,65 @@ export class BkashPaymentService {
     const config = this.getConfig();
     const idToken = await this.grantToken();
 
-    const executeResponse =
-      await this.postToBkash<BkashExecutePaymentResponse>(
-        `${config.baseUrl}/tokenized/checkout/execute`,
-        this.getAuthHeaders(config, idToken),
-        {
-          paymentID,
-        },
-      );
+    const executeResponse = await this.postToBkash<BkashExecutePaymentResponse>(
+      `${config.baseUrl}/tokenized/checkout/execute`,
+      this.getAuthHeaders(config, idToken),
+      {
+        paymentID,
+      },
+    );
 
     if (!this.isPaymentCompleted(executeResponse)) {
       throw bkashPaymentErrors.paymentNotSuccessful(executeResponse);
     }
 
-    return this.grantCreditsAfterSuccessfulBkashPayment(executeResponse);
-  }
+    const bkashPaymentId =
+      executeResponse.paymentID || executeResponse.paymentId;
+    const bkashTransactionId = executeResponse.trxID;
 
-  private static async grantCreditsAfterSuccessfulBkashPayment(
-    executeResponse: BkashExecutePaymentResponse,
-  ) {
-    const paymentID = executeResponse.paymentID;
-
-    if (!paymentID) {
-      throw bkashPaymentErrors.paymentIdRequired();
+    if (!bkashPaymentId) {
+      throw bkashPaymentErrors.paymentNotSuccessful({
+        ...executeResponse,
+        reason: "Missing bKash payment ID from execute response",
+      });
     }
 
-    return prisma.$transaction(async (tx) => {
-      const payment = await tx.payment.findFirst({
+    if (!bkashTransactionId) {
+      throw bkashPaymentErrors.paymentNotSuccessful({
+        ...executeResponse,
+        reason: "Missing bKash transaction ID from execute response",
+      });
+    }
+
+    return this.handleBkashPaymentSuccess({
+      paymentId: paymentID,
+      bkashPaymentId,
+      bkashTransactionId,
+    });
+  }
+
+  static async handleBkashPaymentSuccess(params: {
+    paymentId: string;
+    bkashPaymentId: string;
+    bkashTransactionId: string;
+  }) {
+    const result = await prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.findUnique({
         where: {
-          stripeSessionId: paymentID,
+          id: params.paymentId as string,
         },
       });
 
       if (!payment) {
-        throw bkashPaymentErrors.paymentNotFound();
+        throw paymentErrors.paymentNotFound();
       }
 
       if (payment.status === "SUCCEEDED") {
-        await tx.auditLog.create({
-          data: {
-            actorId: null,
-            action: BKASH_ACTIONS.PAYMENT_ALREADY_SUCCEEDED,
-            entityType: "Payment",
-            entityId: payment.id,
-            metadata: {
-              provider: "BKASH_TOKENIZED",
-              paymentID,
-              trxID: executeResponse.trxID,
-              message:
-                "Idempotent call: credits were not granted again.",
-            },
-          },
-        });
-
         return {
+          processed: true,
           idempotent: true,
-          payment,
-          bkash: executeResponse,
+          paymentId: payment.id,
+          message: "Payment already succeeded. Credits were not granted again.",
         };
       }
 
@@ -332,8 +332,8 @@ export class BkashPaymentService {
         },
         data: {
           status: "SUCCEEDED",
-          stripePaymentIntentId:
-            executeResponse.trxID || payment.stripePaymentIntentId,
+          bkashPaymentId: params.bkashPaymentId,
+          bkashTransactionId: params.bkashTransactionId,
         },
       });
 
@@ -351,15 +351,12 @@ export class BkashPaymentService {
       await tx.auditLog.create({
         data: {
           actorId: null,
-          action: BKASH_ACTIONS.PAYMENT_EXECUTED,
+          action: "BKASH_PAYMENT_SUCCEEDED_CREDITS_GRANTED",
           entityType: "Payment",
           entityId: payment.id,
           metadata: {
-            provider: "BKASH_TOKENIZED",
-            paymentID,
-            trxID: executeResponse.trxID,
-            transactionStatus: executeResponse.transactionStatus,
-            amount: executeResponse.amount,
+            bkashPaymentId: params.bkashPaymentId,
+            bkashTransactionId: params.bkashTransactionId,
             companyId: payment.companyId,
             creditsPurchased: payment.creditsPurchased,
             companyCreditsAfter: updatedCompany.credits,
@@ -368,12 +365,22 @@ export class BkashPaymentService {
       });
 
       return {
+        processed: true,
         idempotent: false,
         payment: updatedPayment,
         companyCredits: updatedCompany.credits,
-        bkash: executeResponse,
       };
     });
+
+    if (!result.idempotent && result.payment?.id) {
+      try {
+        await this.sendPaymentSuccessInvoiceEmail(result.payment.id);
+      } catch (error) {
+        console.error("Failed to send payment invoice email", error);
+      }
+    }
+
+    return result;
   }
 
   static async queryPayment(paymentID: string) {
@@ -384,14 +391,13 @@ export class BkashPaymentService {
     const config = this.getConfig();
     const idToken = await this.grantToken();
 
-    const queryResponse =
-      await this.postToBkash<BkashQueryPaymentResponse>(
-        `${config.baseUrl}/tokenized/checkout/payment/status`,
-        this.getAuthHeaders(config, idToken),
-        {
-          paymentID,
-        },
-      );
+    const queryResponse = await this.postToBkash<BkashQueryPaymentResponse>(
+      `${config.baseUrl}/tokenized/checkout/payment/status`,
+      this.getAuthHeaders(config, idToken),
+      {
+        paymentID,
+      },
+    );
 
     await prisma.auditLog.create({
       data: {
@@ -407,8 +413,7 @@ export class BkashPaymentService {
 
   static async handleCallback(status: unknown, paymentID: unknown) {
     const normalizedStatus = this.parseBkashStatus(status);
-    const bkashPaymentID =
-      typeof paymentID === "string" ? paymentID : "";
+    const bkashPaymentID = typeof paymentID === "string" ? paymentID : "";
 
     if (!bkashPaymentID) {
       throw bkashPaymentErrors.invalidCallback();
@@ -419,8 +424,7 @@ export class BkashPaymentService {
     }
 
     const action =
-      normalizedStatus === "cancel" ||
-      normalizedStatus === "cancelled"
+      normalizedStatus === "cancel" || normalizedStatus === "cancelled"
         ? BKASH_ACTIONS.PAYMENT_CANCELLED
         : BKASH_ACTIONS.PAYMENT_FAILED;
 
@@ -511,10 +515,7 @@ export class BkashPaymentService {
     };
   }
 
-  static async getRecruiterPaymentById(
-    recruiterId: string,
-    paymentId: string,
-  ) {
+  static async getRecruiterPaymentById(recruiterId: string, paymentId: string) {
     const recruiter = await this.getRecruiterCompany(recruiterId);
 
     const payment = await prisma.payment.findFirst({
@@ -529,5 +530,93 @@ export class BkashPaymentService {
     }
 
     return payment;
+  }
+
+  private static async sendPaymentSuccessInvoiceEmail(paymentId: string) {
+    const payment = await prisma.payment.findUnique({
+      where: {
+        id: paymentId,
+      },
+      include: {
+        company: {
+          include: {
+            owner: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      return;
+    }
+
+    if (!payment.company?.owner?.email) {
+      return;
+    }
+
+    // Optional duplicate prevention if you add invoiceEmailSentAt field
+    if ("invoiceEmailSentAt" in payment && payment.invoiceEmailSentAt) {
+      return;
+    }
+
+    const invoiceNumber =
+      payment.invoiceNumber || InvoiceService.generateInvoiceNumber(payment.id);
+
+    const amount = Number(payment.amount);
+
+    const invoicePdfBuffer = await InvoiceService.generatePaymentInvoicePdf({
+      invoiceNumber,
+      paymentId: payment.id,
+      paymentDate: payment.updatedAt,
+
+      companyName: payment.company.name,
+      recruiterName: payment.company.owner.name,
+      recruiterEmail: payment.company.owner.email,
+
+      paymentMethod: "bKash",
+      transactionId:
+        payment.bkashTransactionId ||
+        payment.bkashPaymentId ||
+        payment.stripePaymentIntentId ||
+        payment.stripeSessionId,
+
+      creditsPurchased: payment.creditsPurchased,
+      amount,
+      currency: "BDT",
+      status: payment.status,
+    });
+
+    await PaymentEmailService.sendPaymentSuccessEmail({
+      to: payment.company.owner.email,
+      recruiterName: payment.company.owner.name,
+      companyName: payment.company.name,
+      amount,
+      currency: "BDT",
+      creditsPurchased: payment.creditsPurchased,
+      transactionId:
+        payment.bkashTransactionId ||
+        payment.bkashPaymentId ||
+        payment.stripePaymentIntentId ||
+        payment.stripeSessionId,
+      invoiceNumber,
+      invoicePdfBuffer,
+    });
+
+    // Optional if you add invoiceNumber + invoiceEmailSentAt fields
+    await prisma.payment.update({
+      where: {
+        id: payment.id,
+      },
+      data: {
+        invoiceNumber,
+        invoiceEmailSentAt: new Date(),
+      },
+    });
   }
 }

@@ -37,7 +37,11 @@ export interface BkashCreatePaymentResponse {
 export interface BkashExecutePaymentResponse {
   statusCode?: string;
   statusMessage?: string;
+
+  // bKash may return one of these depending on API/version
   paymentID?: string;
+  paymentId?: string;
+
   trxID?: string;
   transactionStatus?: string;
   amount?: string;
@@ -45,6 +49,7 @@ export interface BkashExecutePaymentResponse {
   intent?: string;
   merchantInvoiceNumber?: string;
   paymentExecuteTime?: string;
+
   [key: string]: unknown;
 }
 

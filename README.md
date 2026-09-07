@@ -1,961 +1,728 @@
-# Developer Assessment & Coding Platform
+# Developer Assessment & Coding Platform API
 
-A backend-focused assessment and coding platform for companies, recruiters, evaluators, and candidates. The platform allows companies to create assessments, manage problem banks, invite candidates, conduct timed assessments, evaluate submissions, and generate candidate reports.
+A backend-only REST API for creating, managing, delivering, and evaluating technical assessments. The platform allows recruiters to create assessments, invite candidates, collect timed submissions, evaluate answers, generate reports, and purchase assessment credits through a real payment gateway.
 
-## Project Category
+> Backend-only project. No frontend is required. All flows are testable through Postman.
 
-**Education / Recruitment**
+---
 
-## Project Overview
+## Live Links
 
-The Developer Assessment & Coding Platform helps companies evaluate candidates through structured online assessments.
+| Item | Link |
+|---|---|
+| Live API URL | `TODO: Add deployed API URL` |
+| Repository URL | `TODO: Add repository URL` |
+| Postman Collection | `TODO: Add Postman collection link or file path` |
+| ERD | `TODO: Add ERD image/link` |
+| Video Walkthrough | `TODO: Add walkthrough video link` |
 
-Companies can create assessments by selecting problems from a problem bank, invite candidates, monitor assessment attempts, evaluate submissions, and view candidate scores and reports.
+---
 
-Candidates can access invited assessments, answer MCQ, written, and coding questions, submit their attempts, and view their results when evaluation is completed.
+## Demo Credentials
 
-## Core Workflow
+> Replace these with the actual seeded credentials used in your project. Do not use production credentials here.
+
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@example.com` | `Password123!` |
+| Recruiter | `recruiter@example.com` | `Password123!` |
+| Candidate | `candidate@example.com` | `Password123!` |
+
+---
+
+## Tech Stack
+
+- Node.js 20+
+- TypeScript
+- Express.js
+- PostgreSQL
+- Prisma ORM
+- Zod
+- JWT authentication
+- bcrypt password hashing
+- Stripe Checkout / Stripe Payment Intents
+- Helmet
+- CORS
+- express-rate-limit
+- Nodemailer or Resend for emails
+- Postman for API testing and documentation
+- Render for deployment
+
+---
+
+## Core Features
+
+### Authentication & Authorization
+
+- Register and login users.
+- JWT Bearer authentication.
+- Refresh-token/session support.
+- Role-based access control.
+- Resource ownership checks.
+- Suspended-user protection.
+
+### User Roles
+
+The platform supports exactly three primary roles:
+
+| Role | Description |
+|---|---|
+| `ADMIN` | System-level administrator with access to users, statistics, audit logs, and payments. |
+| `RECRUITER` | Company user who creates assessments, invites candidates, evaluates submissions, views reports, and purchases credits. |
+| `CANDIDATE` | Assessment participant who accepts invitations, starts timed attempts, submits answers, and views results when allowed. |
+
+### Recruiter Assessment Workflow
 
 ```text
-Company
-   │
-   ▼
-Create Assessment
-   │
-   ▼
-Add Problems
-   │
-   ▼
-Invite Candidates
-   │
-   ▼
-Candidate Attempts
-   │
-   ▼
-Submission
-   │
-   ▼
-Evaluation
-   │
-   ▼
-Score
-   │
-   ▼
-Company Report
-Possible Users
+Recruiter / Company
+   -> Create Assessment
+   -> Add Problems
+   -> Publish Assessment
+   -> Invite Candidates
+   -> Candidate Starts Timed Attempt
+   -> Candidate Submits Answers
+   -> Automatic / Manual Evaluation
+   -> Score & Result
+   -> Recruiter Report
+```
 
-Candidate
+### Problem Bank
 
-Company
+- MCQ, written, and coding problem types.
+- Difficulty levels: `EASY`, `MEDIUM`, `HARD`.
+- Points-based scoring.
+- Tags, filtering, sorting, search, and pagination.
+- Soft delete support.
+- Correct MCQ answers are never exposed to candidates during active assessments.
+
+### Assessment Lifecycle
+
+Supported assessment status flow:
 
-Recruiter
+```text
+DRAFT -> PUBLISHED -> CLOSED -> ARCHIVED
+```
+
+Also supported:
+
+```text
+DRAFT -> ARCHIVED
+```
+
+Rules:
+
+- Problems can be added, removed, and reordered while an assessment is `DRAFT`.
+- Publishing requires a valid title, duration, at least one active problem, and positive total points.
+- Published assessments cannot be destructively edited in a way that affects existing attempts.
+- Closed assessments do not accept new attempts.
+- Archived assessments are read-only.
+
+### Invitations & Timed Attempts
+
+- Recruiters invite candidates to published assessments.
+- Invitation tokens are cryptographically secure.
+- Invitation expiry and revocation are enforced.
+- Starting an attempt is transactional.
+- The server is the source of truth for timers.
+- Candidates cannot edit answers after submission or expiry.
+
+### Evaluation & Results
+
+- MCQ answers are auto-scored.
+- Written and coding answers are manually evaluated by recruiters.
+- Manual score cannot exceed the problem maximum score.
+- Final evaluation calculates total score, percentage, and pass/fail state.
+- Candidate result visibility follows assessment policy:
+  - `IMMEDIATE`
+  - `AFTER_REVIEW`
+  - `HIDDEN`
+
+### Payments & Credits
+
+- Recruiters purchase assessment credits for their company.
+- One successful candidate invitation consumes one credit.
+- Payment success is verified through Stripe webhook signature verification.
+- Credit granting is transactional and idempotent.
+- Replayed webhooks must not grant credits twice.
+
+### Admin Features
+
+- List and search users.
+- Suspend or reactivate users.
+- View dashboard statistics.
+- View audit logs.
+- Inspect platform payments.
+
+### Audit Logging
+
+Audit logs should be recorded for critical actions such as:
+
+- User registration and login.
+- User status changes.
+- Company creation/update.
+- Problem and assessment lifecycle changes.
+- Candidate invitations.
+- Attempt start/submission.
+- Answer evaluation.
+- Evaluation finalization.
+- Payment success/failure.
+
+---
+
+## API Base URL
+
+```text
+/api/v1
+```
+
+Example local base URL:
+
+```text
+http://localhost:5000/api/v1
+```
+
+---
+
+## Standard API Response Format
+
+### Success Response
+
+```json
+{
+  "success": true,
+  "message": "Operation successful",
+  "data": {}
+}
+```
+
+### Error Response
+
+```json
+{
+  "success": false,
+  "message": "Something went wrong",
+  "errors": []
+}
+```
+
+### Paginated Response
+
+```json
+{
+  "success": true,
+  "message": "Data retrieved successfully",
+  "data": {
+    "items": [],
+    "meta": {
+      "page": 1,
+      "limit": 10,
+      "total": 52,
+      "totalPages": 6
+    }
+  }
+}
+```
+
+---
+
+## Important API Endpoints
+
+### Authentication
+
+| Method | Endpoint | Access |
+|---|---|---|
+| POST | `/auth/register` | Public |
+| POST | `/auth/login` | Public |
+| POST | `/auth/refresh-token` | Public |
+| POST | `/auth/logout` | Authenticated |
+
+### Profile
+
+| Method | Endpoint | Access |
+|---|---|---|
+| GET | `/users/me` | Authenticated |
+| PATCH | `/users/me` | Authenticated |
+
+### Company
+
+| Method | Endpoint | Access |
+|---|---|---|
+| POST | `/companies` | Recruiter |
+| GET | `/companies/me` | Recruiter |
+| PATCH | `/companies/me` | Recruiter |
+
+### Problems
+
+| Method | Endpoint | Access |
+|---|---|---|
+| POST | `/problems` | Recruiter |
+| GET | `/problems` | Recruiter |
+| GET | `/problems/:id` | Recruiter Owner |
+| PATCH | `/problems/:id` | Recruiter Owner |
+| DELETE | `/problems/:id` | Recruiter Owner |
+
+### Assessments
+
+| Method | Endpoint | Access |
+|---|---|---|
+| POST | `/assessments` | Recruiter |
+| GET | `/assessments` | Recruiter |
+| GET | `/assessments/:id` | Recruiter Owner / Admin |
+| PATCH | `/assessments/:id` | Recruiter Owner |
+| DELETE | `/assessments/:id` | Recruiter Owner |
+| POST | `/assessments/:id/problems` | Recruiter Owner |
+| DELETE | `/assessments/:id/problems/:problemId` | Recruiter Owner |
+| PATCH | `/assessments/:id/problems/reorder` | Recruiter Owner |
+| POST | `/assessments/:id/publish` | Recruiter Owner |
+| POST | `/assessments/:id/close` | Recruiter Owner |
+| POST | `/assessments/:id/archive` | Recruiter Owner |
+
+### Invitations
 
-Assessment Creator
+| Method | Endpoint | Access |
+|---|---|---|
+| POST | `/assessments/:id/invitations` | Recruiter Owner |
+| GET | `/assessments/:id/invitations` | Recruiter Owner |
+| POST | `/invitations/:id/revoke` | Recruiter Owner |
+| GET | `/invitations/me` | Candidate |
+| GET | `/invitations/:token` | Candidate |
 
-Evaluator
+### Attempts & Answers
 
-Admin
+| Method | Endpoint | Access |
+|---|---|---|
+| POST | `/invitations/:token/start` | Candidate |
+| GET | `/attempts/:id` | Candidate Owner / Recruiter Owner |
+| PUT | `/attempts/:id/answers/:problemId` | Candidate Owner |
+| POST | `/attempts/:id/submit` | Candidate Owner |
+| GET | `/attempts/me` | Candidate |
 
-Main Features
-Authentication and Authorization
+### Evaluation & Reports
 
-User registration and login
+| Method | Endpoint | Access |
+|---|---|---|
+| GET | `/assessments/:id/submissions` | Recruiter Owner |
+| GET | `/attempts/:id/evaluation` | Recruiter Owner |
+| PATCH | `/attempts/:id/answers/:answerId/evaluate` | Recruiter Owner |
+| POST | `/attempts/:id/finalize-evaluation` | Recruiter Owner |
+| GET | `/attempts/:id/result` | Candidate Owner / Recruiter Owner |
+| GET | `/assessments/:id/report` | Recruiter Owner |
 
-JWT-based authentication
+### Payments
 
-Role-based authorization
+| Method | Endpoint | Access |
+|---|---|---|
+| POST | `/payments/checkout` | Recruiter |
+| POST | `/payments/webhook` | Stripe |
+| GET | `/payments` | Recruiter |
+| GET | `/payments/:id` | Recruiter Owner / Admin |
 
-Candidate, company, evaluator, and admin permissions
+### Admin
 
-Password management
+| Method | Endpoint | Access |
+|---|---|---|
+| GET | `/admin/users` | Admin |
+| PATCH | `/admin/users/:id/status` | Admin |
+| GET | `/admin/dashboard-stats` | Admin |
+| GET | `/admin/audit-logs` | Admin |
+| GET | `/admin/payments` | Admin |
 
-Protected routes
+---
 
-Company Management
+## Local Installation
 
-Create and update company profiles
+### 1. Clone the Repository
 
-View company information
+```bash
+git clone <repository-url>
+cd <project-folder>
+```
 
-Manage company members
+### 2. Install Dependencies
 
-Assign assessment creators and evaluators
+```bash
+npm install
+```
 
-View company assessment history
+### 3. Create Environment File
 
-Candidate Management
+```bash
+cp .env.example .env
+```
 
-Create candidate profiles
+Then update `.env` with your local values.
 
-Update candidate information
+### 4. Run Prisma Migration
 
-View candidate assessment history
+```bash
+npx prisma migrate dev
+```
 
-View completed assessment results
+### 5. Seed the Database
 
-Track candidate performance
+```bash
+npx prisma db seed
+```
 
-Problem Bank
+### 6. Start Development Server
 
-Create problems
+```bash
+npm run dev
+```
 
-Update problems
+### 7. Build for Production
 
-Delete or archive problems
+```bash
+npm run build
+```
 
-View problem details
+### 8. Start Production Server
 
-Filter problems by type and difficulty
+```bash
+npm start
+```
 
-Add problem tags
+---
 
-Manage MCQ options
+## Environment Variables
 
-Mark correct MCQ options
+Create a `.env` file using the following structure:
 
-Support different problem types
-
-Supported problem types may include:
-
-Multiple-choice questions
-
-Written questions
-
-Coding questions
-
-Assessment Management
-
-Create assessments
-
-Update assessment details
-
-Add or remove problems
-
-Configure assessment duration
-
-Configure passing score
-
-Publish or deactivate assessments
-
-View assessment details
-
-Manage assessment lifecycle
-
-Candidate Invitations
-
-Invite candidates to assessments
-
-Generate unique invitation records
-
-Set invitation status
-
-Track invitation expiry
-
-Accept or reject invitations
-
-Prevent unauthorized assessment access
-
-Timed Attempts
-
-Start an assessment attempt
-
-Track start time
-
-Track expiry time
-
-Save answers
-
-Update previously saved answers
-
-Prevent editing after submission
-
-Automatically expire attempts
-
-Submit completed attempts
-
-Submission
-
-Submit MCQ answers
-
-Submit written answers
-
-Submit coding answers
-
-Validate attempt ownership
-
-Prevent duplicate submissions
-
-Store submission time
-
-Lock an attempt after submission
-
-Evaluation
-
-Automatically evaluate MCQ answers
-
-Manually evaluate written answers
-
-Support coding evaluation
-
-Store evaluator scores
-
-Add evaluator feedback
-
-Track evaluation status
-
-Recalculate final scores
-
-Results
-
-View candidate results
-
-Display total score
-
-Display percentage
-
-Display pass or fail status
-
-Display evaluator feedback
-
-Hide correct answers before submission
-
-Show evaluated results after evaluation
-
-Company Reports
-
-View assessment performance
-
-View candidate scores
-
-Compare candidates
-
-Filter candidates by result
-
-View passed and failed candidates
-
-View assessment history
-
-Export reports in the future
-
-Subscription and Payment
-
-Payment is an optional business feature for companies that want to use premium assessment functionality.
-
-Possible features include:
-
-View subscription plans
-
-Subscribe to a plan
-
-Upgrade or downgrade a plan
-
-Track subscription status
-
-View payment history
-
-Handle successful and failed payments
-
-Generate invoices
-
-Limit assessments based on subscription
-
-Limit the number of candidates
-
-Enable premium features
-
-The payment workflow may follow this structure:
-
-Company
-   │
-   ▼
-Choose Subscription Plan
-   │
-   ▼
-Create Payment Session
-   │
-   ▼
-Payment Gateway
-   │
-   ▼
-Payment Verification
-   │
-   ▼
-Activate Subscription
-   │
-   ▼
-Access Paid Features
-Anti-Cheating Features
-
-Possible future features:
-
-Disable copy and paste
-
-Detect tab switching
-
-Track suspicious activity
-
-Prevent multiple active attempts
-
-Record assessment activity
-
-Detect unusual submission behavior
-
-Restrict assessment access by time
-
-Monitor candidate session information
-
-Analytics
-
-Assessment completion rate
-
-Candidate pass rate
-
-Average score
-
-Problem success rate
-
-Candidate performance history
-
-Assessment participation statistics
-
-Company-level analytics
-
-Backend Challenges
-
-This project includes several important backend engineering challenges:
-
-Assessment lifecycle management
-
-Secure candidate invitation handling
-
-Role-based permission management
-
-Candidate ownership validation
-
-Timed attempt management
-
-Automatic attempt expiry
-
-Secure answer submission
-
-Idempotent answer updates
-
-Automatic and manual evaluation
-
-Score calculation
-
-Transaction management
-
-Payment verification
-
-Subscription access control
-
-Rate limiting
-
-Secure coding execution
-
-Report generation
-
-Data consistency
-
-Recommended Modules
-src
-├── app
-│   ├── config
-│   ├── common
-│   ├── middleware
-│   └── routes
-│
-├── modules
-│   ├── auth
-│   ├── users
-│   ├── companies
-│   ├── candidates
-│   ├── problems
-│   ├── assessments
-│   ├── invitations
-│   ├── attempts
-│   ├── submissions
-│   ├── evaluations
-│   ├── results
-│   ├── reports
-│   ├── subscriptions
-│   └── payments
-│
-├── prisma
-│   └── schema.prisma
-│
-└── server.ts
-Assessment Lifecycle
-DRAFT
-   ↓
-PUBLISHED
-   ↓
-IN_PROGRESS
-   ↓
-SUBMITTED
-   ↓
-EVALUATED
-   ↓
-COMPLETED
-
-An assessment may also be:
-
-DRAFT → CANCELLED
-PUBLISHED → ARCHIVED
-Attempt Lifecycle
-IN_PROGRESS
-     │
-     ├── Candidate submits
-     │       ↓
-     │   SUBMITTED
-     │       ↓
-     │   EVALUATED
-     │
-     └── Time expires
-             ↓
-          EXPIRED
-Evaluation Workflow
-Candidate submits attempt
-          │
-          ▼
-System evaluates MCQ answers
-          │
-          ▼
-Written and coding answers require evaluation
-          │
-          ▼
-Evaluator reviews answers
-          │
-          ▼
-Evaluator assigns scores
-          │
-          ▼
-System calculates final result
-          │
-          ▼
-Candidate and company can view results
-Suggested Technology Stack
-Backend
-
-Node.js
-
-Express.js
-
-TypeScript
-
-Prisma ORM
-
-PostgreSQL
-
-Authentication
-
-JSON Web Token
-
-Password hashing with bcrypt or Argon2
-
-Role-based authorization
-
-Validation
-
-Zod
-
-API Documentation
-
-Swagger/OpenAPI
-
-Testing
-
-Jest
-
-Supertest
-
-Code Quality
-
-ESLint
-
-Prettier
-
-Husky
-
-lint-staged
-
-Development Tools
-
-Git
-
-GitHub
-
-Postman
-
-DBeaver
-
-Docker
-
-Database Entities
-
-The project may contain the following main entities:
-
-User
-Company
-Problem
-ProblemOption
-Assessment
-AssessmentProblem
-Invitation
-Attempt
-Answer
-Evaluation
-Result
-Plan
-Subscription
-Payment
-Example Entity Relationship
-Company
-   │
-   ├── Problems
-   ├── Assessments
-   └── Subscriptions
-
-Assessment
-   │
-   ├── Assessment Problems
-   ├── Invitations
-   └── Attempts
-
-Invitation
-   │
-   └── Attempt
-
-Attempt
-   │
-   ├── Answers
-   └── Evaluation
-
-Problem
-   │
-   ├── Problem Options
-   └── Answers
-API Modules
-
-Example API route structure:
-
-/api/v1/auth
-/api/v1/users
-/api/v1/companies
-/api/v1/problems
-/api/v1/assessments
-/api/v1/invitations
-/api/v1/attempts
-/api/v1/submissions
-/api/v1/evaluations
-/api/v1/results
-/api/v1/reports
-/api/v1/subscriptions
-/api/v1/payments
-Example Attempt Endpoints
-GET /api/v1/attempts/me
-
-Returns all attempts belonging to the authenticated candidate.
-
-GET /api/v1/attempts/:id
-
-Returns a specific candidate attempt.
-
-PUT /api/v1/attempts/:id/answers/:problemId
-
-Creates or updates an answer for a specific problem.
-
-POST /api/v1/attempts/:id/submit
-
-Submits an assessment attempt.
-
-GET /api/v1/attempts/:id/result
-
-Returns the evaluated result of an attempt.
-
-Security Requirements
-
-Authenticate all protected routes
-
-Apply role-based authorization
-
-Verify candidate ownership of attempts
-
-Do not expose correct MCQ answers to candidates
-
-Do not allow answers after submission
-
-Validate all request parameters and bodies
-
-Use database transactions for critical operations
-
-Verify payment gateway webhooks
-
-Apply rate limiting to sensitive endpoints
-
-Avoid storing plain-text passwords
-
-Sanitize user-generated content
-
-Restrict access to company data
-
-Log important security events
-
-Payment Security
-
-If payment functionality is implemented:
-
-Never trust payment status from the frontend
-
-Verify payment status on the backend
-
-Validate payment gateway webhook signatures
-
-Store unique transaction IDs
-
-Prevent duplicate payment processing
-
-Use database transactions when activating subscriptions
-
-Keep payment records immutable where possible
-
-Do not store raw card details
-
-Use a trusted payment provider
-
-Future Coding Execution
-
-If coding execution is implemented, submitted code should not run directly inside the main application server.
-
-A safer architecture is:
-
-Candidate submits code
-        │
-        ▼
-Backend creates execution job
-        │
-        ▼
-Isolated execution environment
-        │
-        ▼
-Run code against test cases
-        │
-        ▼
-Collect output and execution status
-        │
-        ▼
-Calculate coding score
-
-Possible isolation technologies may include:
-
-Docker containers
-
-Sandboxed workers
-
-Separate execution services
-
-Resource and time limits
-
-Project Goals
-
-The main goals of this project are to:
-
-Build a real-world recruitment platform
-
-Practice modular backend architecture
-
-Implement secure authentication and authorization
-
-Work with relational database design
-
-Implement assessment and attempt lifecycles
-
-Handle timed submissions
-
-Build automatic and manual evaluation workflows
-
-Generate reports and results
-
-Learn transaction management
-
-Implement subscription and payment workflows
-
-Improve API testing and backend security
-
-Development Roadmap
-Phase 1: Project Setup
-
-Initialize Node.js and TypeScript
-
-Configure Express
-
-Configure Prisma
-
-Connect PostgreSQL
-
-Add environment variables
-
-Configure error handling
-
-Configure request validation
-
-Phase 2: Authentication
-
-User registration
-
-User login
-
-JWT authentication
-
-Role-based authorization
-
-Password hashing
-
-Phase 3: Company and Candidate Management
-
-Company profile
-
-Candidate profile
-
-Company member management
-
-User permissions
-
-Phase 4: Problem Bank
-
-Create problems
-
-Update problems
-
-Delete or archive problems
-
-Manage MCQ options
-
-Filter and search problems
-
-Phase 5: Assessment Management
-
-Create assessments
-
-Add problems
-
-Configure duration
-
-Configure passing score
-
-Publish assessments
-
-Phase 6: Invitations
-
-Invite candidates
-
-Accept invitations
-
-Track invitation status
-
-Handle invitation expiry
-
-Phase 7: Attempts and Submission
-
-Start attempts
-
-Save answers
-
-Validate ownership
-
-Handle expiry
-
-Submit attempts
-
-Phase 8: Evaluation
-
-Automatic MCQ evaluation
-
-Manual written evaluation
-
-Coding evaluation
-
-Final score calculation
-
-Phase 9: Results and Reports
-
-Candidate results
-
-Company reports
-
-Assessment history
-
-Performance analytics
-
-Phase 10: Subscription and Payment
-
-Create plans
-
-Subscribe to plans
-
-Integrate payment gateway
-
-Verify payments
-
-Activate subscriptions
-
-Apply usage limits
-
-Phase 11: Advanced Features
-
-Anti-cheating
-
-Coding execution
-
-Advanced analytics
-
-Exportable reports
-
-Notifications
-
-Email integration
-
-Environment Variables
-
-Create a .env file:
-
+```env
 NODE_ENV=development
 PORT=5000
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DB_NAME
 
-DATABASE_URL="postgresql://username:password@localhost:5432/assessment_db"
-
-JWT_SECRET="your_jwt_secret"
-JWT_EXPIRES_IN="7d"
+JWT_ACCESS_SECRET=replace_me
+JWT_ACCESS_EXPIRES_IN=15m
+JWT_REFRESH_SECRET=replace_me
+JWT_REFRESH_EXPIRES_IN=7d
 
 BCRYPT_SALT_ROUNDS=12
 
-FRONTEND_URL="http://localhost:3000"
+CORS_ORIGIN=http://localhost:3000
 
-PAYMENT_PROVIDER_SECRET=""
-PAYMENT_WEBHOOK_SECRET=""
-Installation
+STRIPE_SECRET_KEY=replace_me
+STRIPE_WEBHOOK_SECRET=replace_me
+STRIPE_SUCCESS_URL=http://localhost:3000/payment/success
+STRIPE_CANCEL_URL=http://localhost:3000/payment/cancel
 
-Clone the repository:
+EMAIL_FROM=no-reply@example.com
+RESEND_API_KEY=replace_me
+```
 
-git clone https://github.com/your-username/developer-assessment-platform.git
+Never commit `.env` to version control.
 
-Move into the project directory:
+---
 
-cd developer-assessment-platform
+## Prisma Commands
 
-Install dependencies:
+Generate Prisma client:
 
-npm install
-
-Create the environment file:
-
-cp .env.example .env
-
-Run Prisma migrations:
-
-npx prisma migrate dev
-
-Generate Prisma Client:
-
+```bash
 npx prisma generate
+```
 
-Start the development server:
+Create and apply a migration:
 
-npm run dev
-Available Scripts
-npm run dev
+```bash
+npx prisma migrate dev --name init
+```
 
-Starts the development server.
+Apply production migrations:
 
-npm run build
+```bash
+npx prisma migrate deploy
+```
 
-Builds the TypeScript project.
+Open Prisma Studio:
 
-npm start
+```bash
+npx prisma studio
+```
 
-Starts the production server.
+Seed database:
 
-npm run lint
+```bash
+npx prisma db seed
+```
 
-Runs ESLint.
+---
 
-npm run format
+## Postman Testing Guide
 
-Formats the project using Prettier.
+The Postman collection should be organized by module:
 
-npm test
+```text
+Developer Assessment Platform
+  Auth
+  Users
+  Company
+  Problems
+  Assessments
+  Invitations
+  Attempts
+  Evaluation
+  Payments
+  Admin
+```
 
-Runs the test suite.
+Recommended Postman environment variables:
 
-Project Status
+```text
+baseUrl
+adminAccessToken
+recruiterAccessToken
+candidateAccessToken
+assessmentId
+problemId
+invitationToken
+attemptId
+paymentId
+```
 
-The project is currently under development.
+Recommended manual test sequence:
 
-Completed
+1. Login as recruiter.
+2. Create company profile.
+3. Create MCQ, written, and coding problems.
+4. Create assessment.
+5. Attach problems to assessment.
+6. Publish assessment.
+7. Purchase credits using Stripe test mode.
+8. Invite candidate.
+9. Login as candidate.
+10. Start attempt from invitation.
+11. Save answers.
+12. Submit attempt.
+13. Login as recruiter.
+14. Manually evaluate written/coding answers.
+15. Finalize evaluation.
+16. View candidate result and assessment report.
+17. Login as admin.
+18. View users, dashboard stats, audit logs, and payments.
 
-Project setup
+---
 
-Database configuration
+## Stripe Test Mode Instructions
 
-Authentication foundation
+> Stripe payment success must come from webhook verification, not from a normal client request.
 
-Problem management foundation
+### Start Stripe CLI Listener
 
-Assessment management foundation
+```bash
+stripe listen --forward-to localhost:5000/api/v1/payments/webhook
+```
 
-Attempt management foundation
+Copy the webhook signing secret and set it in `.env`:
 
-In Progress
+```env
+STRIPE_WEBHOOK_SECRET=whsec_xxxxxxxxxxxxx
+```
 
-Evaluation workflow
+### Create Checkout Session
 
-Result management
+```http
+POST /api/v1/payments/checkout
+Authorization: Bearer <recruiterAccessToken>
+Content-Type: application/json
+```
 
-Company reports
+```json
+{
+  "packageCode": "STARTER"
+}
+```
 
-Subscription and payment
+### Test Payment Card
 
-Planned
+Use Stripe test card:
 
-Coding execution
+```text
+4242 4242 4242 4242
+```
 
-Anti-cheating features
+Use any valid future expiry date, any CVC, and any postal code.
 
-Analytics
+### Expected Result
 
-Notifications
+- Payment status becomes `SUCCEEDED`.
+- Company credits are incremented exactly once.
+- Replaying the same webhook does not grant duplicate credits.
 
-Advanced reporting
+---
 
-Contribution
+## Security Notes
 
-Contributions are welcome.
+This project should enforce:
 
-Fork the repository.
+- Helmet security headers.
+- Production CORS allowlist.
+- Global rate limiting.
+- Stricter rate limiting for auth routes.
+- bcrypt password hashing.
+- JWT secrets from environment variables.
+- Stripe secrets from environment variables.
+- Centralized error handling.
+- Zod validation for untrusted input.
+- Role-based and ownership-based authorization.
+- Server-authoritative attempt timers.
+- No password hash leakage.
+- No refresh-token leakage.
+- No Stripe secret leakage.
+- No invitation-token leakage beyond intended flows.
+- No MCQ correct-answer leakage to candidates.
+- No unsafe candidate code execution in the MVP.
 
-Create a new branch.
+---
 
-git checkout -b feature/your-feature
+## Testing Checklist
 
-Make your changes.
+### Authentication
 
-Run tests and lint checks.
+- [ ] Register recruiter.
+- [ ] Register candidate.
+- [ ] Reject duplicate email.
+- [ ] Reject invalid password.
+- [ ] Login works.
+- [ ] Wrong password is rejected.
+- [ ] Refresh token works.
+- [ ] Logout/revocation works.
 
-Commit your changes.
+### RBAC & Ownership
 
-git commit -m "feat: add your feature"
+- [ ] Candidate cannot create assessment.
+- [ ] Recruiter cannot access admin users.
+- [ ] Recruiter A cannot access Recruiter B assessment.
+- [ ] Candidate A cannot access Candidate B attempt.
 
-Push the branch.
+### Assessment
 
-git push origin feature/your-feature
+- [ ] Cannot publish empty assessment.
+- [ ] Can add problem to draft assessment.
+- [ ] Can publish valid assessment.
+- [ ] Cannot destructively edit published assessment.
+- [ ] Can close assessment.
 
-Create a pull request.
+### Invitation
 
-License
+- [ ] Cannot invite without credit.
+- [ ] Invite consumes exactly one credit.
+- [ ] Duplicate active invitation is handled safely.
+- [ ] Expired/revoked invitation cannot start attempt.
 
-This project is created for educational and portfolio purposes.
+### Attempt
 
-Author
+- [ ] Candidate can start only once.
+- [ ] Duplicate start is rejected.
+- [ ] Candidate can save answers before expiry.
+- [ ] Candidate cannot edit after submission.
+- [ ] Server enforces timer.
 
-Developed as a backend project to practice real-world assessment platform architecture, secure API development, database design, evaluation workflows, and subscription-based features.
+### Evaluation
+
+- [ ] MCQ is auto-scored correctly.
+- [ ] Recruiter can score written/coding answer.
+- [ ] Score above max is rejected.
+- [ ] Finalization is rejected until manual scores are complete.
+- [ ] Final percentage/pass state is correct.
+
+### Payment
+
+- [ ] Checkout endpoint creates real Stripe test-mode session or intent.
+- [ ] Invalid webhook signature is rejected.
+- [ ] Successful webhook grants credits.
+- [ ] Replayed webhook does not grant credits twice.
+
+---
+
+## Deployment Notes
+
+Recommended deployment platform: Render.
+
+Production checklist:
+
+- [ ] Set all environment variables in hosting provider.
+- [ ] Use production PostgreSQL database.
+- [ ] Run `npx prisma migrate deploy`.
+- [ ] Verify health endpoint.
+- [ ] Verify auth flow.
+- [ ] Verify protected routes require Bearer token.
+- [ ] Verify Stripe webhook URL is configured in Stripe dashboard.
+- [ ] Run smoke test for recruiter and candidate workflow.
+
+---
+
+## Definition of Done
+
+- [ ] Exactly three roles exist: `ADMIN`, `RECRUITER`, `CANDIDATE`.
+- [ ] 20+ meaningful endpoints are implemented.
+- [ ] Protected endpoints require Bearer authentication.
+- [ ] Role and resource ownership checks are enforced.
+- [ ] Passwords are hashed.
+- [ ] Zod validates applicable inputs.
+- [ ] Global structured success/error response format is used.
+- [ ] Pagination, filtering, sorting, and search are implemented.
+- [ ] Soft delete is implemented where appropriate.
+- [ ] Audit logs exist for critical operations.
+- [ ] Assessment lifecycle rules are enforced.
+- [ ] Candidate invitations work.
+- [ ] Server-authoritative timed attempts work.
+- [ ] Candidate submissions work.
+- [ ] MCQ automatic scoring works.
+- [ ] Written/coding manual scoring works.
+- [ ] Result/report generation works.
+- [ ] Real Stripe test-mode payment integration works.
+- [ ] Webhook verification is implemented.
+- [ ] Payment webhook is idempotent.
+- [ ] Company credits are granted transactionally.
+- [ ] Prisma transactions are used for race-sensitive flows.
+- [ ] Useful database indexes exist.
+- [ ] Helmet, CORS, and rate limiting are enabled.
+- [ ] Postman collection documents the API.
+- [ ] Backend is deployed.
+- [ ] README is complete.
+- [ ] Git history contains meaningful commits.
+
+---
+
+## Future Improvements
+
+The following are intentionally out of MVP scope but can be added later:
+
+- Full frontend dashboard.
+- Live collaborative coding.
+- Video proctoring.
+- Browser-lockdown system.
+- AI plagiarism detection.
+- Production-grade compiler/judge infrastructure.
+- Multi-recruiter company membership.
+- Subscription billing.
+- Multiple assessment attempts per invitation.
+- Real-time WebSocket monitoring.
+
+---
+
+## Walkthrough Script
+
+Use this outline for a 3–5 minute demo video:
+
+1. Introduce the project and three roles.
+2. Show the API base URL and Postman collection.
+3. Login as recruiter.
+4. Create problem and assessment.
+5. Publish assessment.
+6. Purchase credits through Stripe test mode.
+7. Invite candidate.
+8. Login as candidate and start attempt.
+9. Submit answers.
+10. Login as recruiter and finalize evaluation.
+11. Show candidate result/report.
+12. Login as admin and show dashboard stats, users, audit logs, and payments.
+13. Summarize security, transactions, and webhook idempotency.
+
+---
+
+## License
+
+This project is prepared as a backend assignment/demo project. Add your preferred license before publishing publicly.

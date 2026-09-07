@@ -10,6 +10,11 @@ model Payment {
   stripeSessionId String? @unique
 
   stripePaymentIntentId String? @unique
+  bkashPaymentId        String?
+  bkashTransactionId    String?
+
+  invoiceNumber         String?
+  invoiceEmailSentAt    DateTime?
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id])
