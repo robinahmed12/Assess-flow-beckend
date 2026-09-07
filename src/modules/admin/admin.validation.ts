@@ -1,60 +1,83 @@
 import { z } from "zod";
 import { UserRole, UserStatus } from "@prisma/client";
 
-const positiveIntFromQuery = (defaultValue: number, maxValue: number) =>
-  z
-    .preprocess((value) => {
-      if (value === undefined || value === null || value === "") return defaultValue;
-      const parsed = Number(value);
-      return Number.isFinite(parsed) ? parsed : value;
-    }, z.number().int().positive().max(maxValue))
-    .default(defaultValue);
-
-export const adminUserIdParamSchema = {
-  params: z.object({
-    id: z.string().min(1, "User id is required"),
-  }),
+const paginationQuery = {
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 };
 
-export const listUsersSchema = {
+export const listUsersSchema = z.object({
+  body: z.object({}),
+
+  params: z.object({}),
+
   query: z.object({
-    page: positiveIntFromQuery(1, 100000).optional(),
-    limit: positiveIntFromQuery(20, 100).optional(),
-    q: z.string().trim().min(1).optional(),
-    role: z.nativeEnum(UserRole).optional(),
-    status: z.nativeEnum(UserStatus).optional(),
-    sortBy: z.enum(["createdAt", "updatedAt", "email", "name", "role", "status"]).default("createdAt").optional(),
-    sortOrder: z.enum(["asc", "desc"]).default("desc").optional(),
-  }),
-};
+    ...paginationQuery,
 
-export const updateUserStatusSchema = {
-  params: adminUserIdParamSchema.params,
+    q: z.string().trim().min(1).optional(),
+
+    role: z.nativeEnum(UserRole).optional(),
+
+    status: z.nativeEnum(UserStatus).optional(),
+
+    sortBy: z
+      .enum(["createdAt", "updatedAt", "email", "name", "role", "status"])
+      .default("createdAt"),
+
+    sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  }),
+});
+
+export const updateUserStatusSchema = z.object({
   body: z.object({
     status: z.nativeEnum(UserStatus),
   }),
-};
 
-export const auditLogsSchema = {
+  params: z.object({
+    id: z.string().uuid("Invalid user id"),
+  }),
+
+  query: z.object({}),
+});
+
+export const auditLogsSchema = z.object({
+  body: z.object({}),
+
+  params: z.object({}),
+
   query: z.object({
-    page: positiveIntFromQuery(1, 100000).optional(),
-    limit: positiveIntFromQuery(20, 100).optional(),
-    actorId: z.string().min(1).optional(),
+    ...paginationQuery,
+
+    actorId: z.string().uuid("Invalid actor id").optional(),
+
     action: z.string().trim().min(1).optional(),
-    entityType: z.string().trim().min(1).optional(),
-    entityId: z.string().trim().min(1).optional(),
-    from: z.string().datetime().optional(),
-    to: z.string().datetime().optional(),
-    sortOrder: z.enum(["asc", "desc"]).default("desc").optional(),
-  }),
-};
 
-export const adminPaymentsSchema = {
-  query: z.object({
-    page: positiveIntFromQuery(1, 100000).optional(),
-    limit: positiveIntFromQuery(20, 100).optional(),
-    status: z.string().trim().min(1).optional(),
-    companyId: z.string().min(1).optional(),
-    sortOrder: z.enum(["asc", "desc"]).default("desc").optional(),
+    entityType: z.string().trim().min(1).optional(),
+
+    entityId: z.string().trim().min(1).optional(),
+
+    from: z.string().datetime("Invalid from date").optional(),
+
+    to: z.string().datetime("Invalid to date").optional(),
+
+    sortOrder: z.enum(["asc", "desc"]).default("desc"),
   }),
-};
+});
+
+export const adminPaymentsSchema = z.object({
+  body: z.object({}),
+
+  params: z.object({}),
+
+  query: z.object({
+    ...paginationQuery,
+
+    status: z
+      .enum(["PENDING", "SUCCEEDED", "FAILED", "REFUNDED"])
+      .optional(),
+
+    companyId: z.string().uuid("Invalid company id").optional(),
+
+    sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  }),
+});

@@ -1,4 +1,13 @@
-import { Prisma, UserStatus } from "@prisma/client";
+import {
+  AssessmentStatus,
+  AttemptStatus,
+  InvitationStatus,
+  PaymentStatus,
+  Prisma,
+  UserRole,
+  UserStatus,
+} from "@prisma/client";
+
 import { prisma } from "../../lib/prisma";
 import { adminErrors } from "./admin.errors";
 import {
@@ -8,35 +17,7 @@ import {
   PaginatedResult,
   UpdateUserStatusBody,
 } from "./admin.types";
-
-const toPositiveInt = (value: unknown, fallback: number, max: number): number => {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 1) return fallback;
-  return Math.min(Math.floor(parsed), max);
-};
-
-const getPagination = (pageValue?: number, limitValue?: number) => {
-  const page = toPositiveInt(pageValue, 1, 100000);
-  const limit = toPositiveInt(limitValue, 20, 100);
-  const skip = (page - 1) * limit;
-
-  return { page, limit, skip };
-};
-
-const getTotalPages = (total: number, limit: number): number => {
-  if (total === 0) return 0;
-  return Math.ceil(total / limit);
-};
-
-const decimalToNumber = (value: unknown): number => {
-  if (value === null || value === undefined) return 0;
-  if (typeof value === "number") return value;
-  if (typeof value === "string") return Number(value);
-  if (typeof value === "object" && "toNumber" in value && typeof value.toNumber === "function") {
-    return value.toNumber();
-  }
-  return Number(value);
-};
+import { AuditService } from "../audit";
 
 const safeUserSelect = {
   id: true,
@@ -48,38 +29,102 @@ const safeUserSelect = {
   updatedAt: true,
 } satisfies Prisma.UserSelect;
 
-export const AdminService = {
-  async listUsers(query: ListUsersQuery): Promise<PaginatedResult<unknown>> {
+const getPagination = (page = 1, limit = 20) => {
+  const safePage = Math.max(1, page);
+  const safeLimit = Math.min(Math.max(1, limit), 100);
+  const skip = (safePage - 1) * safeLimit;
+
+  return {
+    page: safePage,
+    limit: safeLimit,
+    skip,
+  };
+};
+
+const getTotalPages = (total: number, limit: number) => {
+  if (total === 0) {
+    return 0;
+  }
+
+  return Math.ceil(total / limit);
+};
+
+const decimalToNumber = (value: unknown): number => {
+  if (value === null || value === undefined) {
+    return 0;
+  }
+
+  if (typeof value === "number") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return Number(value);
+  }
+
+  if (
+    typeof value === "object" &&
+    "toNumber" in value &&
+    typeof value.toNumber === "function"
+  ) {
+    return value.toNumber();
+  }
+
+  return Number(value);
+};
+
+export class AdminService {
+  static async listUsers(
+    query: ListUsersQuery,
+  ): Promise<PaginatedResult<unknown>> {
     const { page, limit, skip } = getPagination(query.page, query.limit);
+
     const sortBy = query.sortBy ?? "createdAt";
     const sortOrder = query.sortOrder ?? "desc";
 
     const where: Prisma.UserWhereInput = {
       ...(query.role ? { role: query.role } : {}),
+
       ...(query.status ? { status: query.status } : {}),
+
       ...(query.q
         ? {
             OR: [
-              { name: { contains: query.q, mode: "insensitive" } },
-              { email: { contains: query.q, mode: "insensitive" } },
+              {
+                name: {
+                  contains: query.q,
+                  mode: "insensitive",
+                },
+              },
+              {
+                email: {
+                  contains: query.q,
+                  mode: "insensitive",
+                },
+              },
             ],
           }
         : {}),
     };
 
-    const [items, total] = await prisma.$transaction([
+    const [data, total] = await prisma.$transaction([
       prisma.user.findMany({
         where,
         select: safeUserSelect,
-        orderBy: { [sortBy]: sortOrder },
+        orderBy: {
+          [sortBy]: sortOrder,
+        },
         skip,
         take: limit,
       }),
-      prisma.user.count({ where }),
+
+      prisma.user.count({
+        where,
+      }),
     ]);
 
     return {
-      items,
+      data,
       meta: {
         page,
         limit,
@@ -87,15 +132,21 @@ export const AdminService = {
         totalPages: getTotalPages(total, limit),
       },
     };
-  },
+  }
 
-  async updateUserStatus(actorId: string, targetUserId: string, payload: UpdateUserStatusBody) {
+  static async updateUserStatus(
+    actorId: string,
+    targetUserId: string,
+    payload: UpdateUserStatusBody,
+  ) {
     if (actorId === targetUserId) {
       throw adminErrors.cannotUpdateSelf();
     }
 
     const targetUser = await prisma.user.findUnique({
-      where: { id: targetUserId },
+      where: {
+        id: targetUserId,
+      },
       select: safeUserSelect,
     });
 
@@ -103,33 +154,33 @@ export const AdminService = {
       throw adminErrors.userNotFound();
     }
 
-    const result = await prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx) => {
       const updatedUser = await tx.user.update({
-        where: { id: targetUserId },
-        data: { status: payload.status },
+        where: {
+          id: targetUserId,
+        },
+        data: {
+          status: payload.status,
+        },
         select: safeUserSelect,
       });
 
-      await tx.auditLog.create({
-        data: {
-          actorId,
-          action: "ADMIN_USER_STATUS_UPDATED",
-          entityType: "User",
-          entityId: targetUserId,
-          metadata: {
-            previousStatus: targetUser.status,
-            nextStatus: payload.status,
-          },
+      await AuditService.create(tx, {
+        actorId,
+        action: "ADMIN_USER_STATUS_UPDATED",
+        entityType: "User",
+        entityId: targetUserId,
+        metadata: {
+          previousStatus: targetUser.status,
+          nextStatus: payload.status,
         },
       });
 
       return updatedUser;
     });
+  }
 
-    return result;
-  },
-
-  async getDashboardStats() {
+  static async getDashboardStats() {
     const [
       totalUsers,
       activeUsers,
@@ -137,56 +188,148 @@ export const AdminService = {
       admins,
       recruiters,
       candidates,
+
       totalCompanies,
+
       totalProblems,
+
       totalAssessments,
       draftAssessments,
       publishedAssessments,
       closedAssessments,
       archivedAssessments,
+
       totalInvitations,
       pendingInvitations,
       acceptedInvitations,
       revokedInvitations,
+
       totalAttempts,
       inProgressAttempts,
       submittedAttempts,
       evaluatedAttempts,
       expiredAttempts,
+
       totalPayments,
       succeededPayments,
       failedPayments,
       pendingPayments,
+
       paymentsAggregate,
     ] = await prisma.$transaction([
       prisma.user.count(),
-      prisma.user.count({ where: { status: UserStatus.ACTIVE } }),
-      prisma.user.count({ where: { status: UserStatus.SUSPENDED } }),
-      prisma.user.count({ where: { role: "ADMIN" as any } }),
-      prisma.user.count({ where: { role: "RECRUITER" as any } }),
-      prisma.user.count({ where: { role: "CANDIDATE" as any } }),
+      prisma.user.count({
+        where: {
+          status: UserStatus.ACTIVE,
+        },
+      }),
+      prisma.user.count({
+        where: {
+          status: UserStatus.SUSPENDED,
+        },
+      }),
+      prisma.user.count({
+        where: {
+          role: UserRole.ADMIN,
+        },
+      }),
+      prisma.user.count({
+        where: {
+          role: UserRole.RECRUITER,
+        },
+      }),
+      prisma.user.count({
+        where: {
+          role: UserRole.CANDIDATE,
+        },
+      }),
+
       prisma.company.count(),
+
       prisma.problem.count(),
+
       prisma.assessment.count(),
-      prisma.assessment.count({ where: { status: "DRAFT" as any } }),
-      prisma.assessment.count({ where: { status: "PUBLISHED" as any } }),
-      prisma.assessment.count({ where: { status: "CLOSED" as any } }),
-      prisma.assessment.count({ where: { status: "ARCHIVED" as any } }),
+      prisma.assessment.count({
+        where: {
+          status: AssessmentStatus.DRAFT,
+        },
+      }),
+      prisma.assessment.count({
+        where: {
+          status: AssessmentStatus.PUBLISHED,
+        },
+      }),
+      prisma.assessment.count({
+        where: {
+          status: AssessmentStatus.CLOSED,
+        },
+      }),
+      prisma.assessment.count({
+        where: {
+          status: AssessmentStatus.ARCHIVED,
+        },
+      }),
+
       prisma.invitation.count(),
-      prisma.invitation.count({ where: { status: "PENDING" as any } }),
-      prisma.invitation.count({ where: { status: "ACCEPTED" as any } }),
-      prisma.invitation.count({ where: { status: "REVOKED" as any } }),
+      prisma.invitation.count({
+        where: {
+          status: InvitationStatus.PENDING,
+        },
+      }),
+      prisma.invitation.count({
+        where: {
+          status: InvitationStatus.ACCEPTED,
+        },
+      }),
+      prisma.invitation.count({
+        where: {
+          status: InvitationStatus.REVOKED,
+        },
+      }),
+
       prisma.attempt.count(),
-      prisma.attempt.count({ where: { status: "IN_PROGRESS" as any } }),
-      prisma.attempt.count({ where: { status: "SUBMITTED" as any } }),
-      prisma.attempt.count({ where: { status: "EVALUATED" as any } }),
-      prisma.attempt.count({ where: { status: "EXPIRED" as any } }),
+      prisma.attempt.count({
+        where: {
+          status: AttemptStatus.IN_PROGRESS,
+        },
+      }),
+      prisma.attempt.count({
+        where: {
+          status: AttemptStatus.SUBMITTED,
+        },
+      }),
+      prisma.attempt.count({
+        where: {
+          status: AttemptStatus.EVALUATED,
+        },
+      }),
+      prisma.attempt.count({
+        where: {
+          status: AttemptStatus.EXPIRED,
+        },
+      }),
+
       prisma.payment.count(),
-      prisma.payment.count({ where: { status: "SUCCEEDED" as any } }),
-      prisma.payment.count({ where: { status: "FAILED" as any } }),
-      prisma.payment.count({ where: { status: "PENDING" as any } }),
+      prisma.payment.count({
+        where: {
+          status: PaymentStatus.SUCCEEDED,
+        },
+      }),
+      prisma.payment.count({
+        where: {
+          status: PaymentStatus.FAILED,
+        },
+      }),
+      prisma.payment.count({
+        where: {
+          status: PaymentStatus.PENDING,
+        },
+      }),
+
       prisma.payment.aggregate({
-        where: { status: "SUCCEEDED" as any },
+        where: {
+          status: PaymentStatus.SUCCEEDED,
+        },
         _sum: {
           amount: true,
           creditsPurchased: true,
@@ -205,12 +348,15 @@ export const AdminService = {
           candidate: candidates,
         },
       },
+
       companies: {
         total: totalCompanies,
       },
+
       problems: {
         total: totalProblems,
       },
+
       assessments: {
         total: totalAssessments,
         draft: draftAssessments,
@@ -218,12 +364,14 @@ export const AdminService = {
         closed: closedAssessments,
         archived: archivedAssessments,
       },
+
       invitations: {
         total: totalInvitations,
         pending: pendingInvitations,
         accepted: acceptedInvitations,
         revoked: revokedInvitations,
       },
+
       attempts: {
         total: totalAttempts,
         inProgress: inProgressAttempts,
@@ -231,6 +379,7 @@ export const AdminService = {
         evaluated: evaluatedAttempts,
         expired: expiredAttempts,
       },
+
       payments: {
         total: totalPayments,
         pending: pendingPayments,
@@ -240,28 +389,66 @@ export const AdminService = {
         creditsPurchased: paymentsAggregate._sum.creditsPurchased ?? 0,
       },
     };
-  },
+  }
 
-  async listAuditLogs(query: AuditLogsQuery): Promise<PaginatedResult<unknown>> {
+  static async listAuditLogs(
+    query: AuditLogsQuery,
+  ): Promise<PaginatedResult<unknown>> {
     const { page, limit, skip } = getPagination(query.page, query.limit);
+
     const sortOrder = query.sortOrder ?? "desc";
 
     const where: Prisma.AuditLogWhereInput = {
-      ...(query.actorId ? { actorId: query.actorId } : {}),
-      ...(query.action ? { action: { contains: query.action, mode: "insensitive" } } : {}),
-      ...(query.entityType ? { entityType: { contains: query.entityType, mode: "insensitive" } } : {}),
-      ...(query.entityId ? { entityId: query.entityId } : {}),
-      ...((query.from || query.to)
+      ...(query.actorId
+        ? {
+            actorId: query.actorId,
+          }
+        : {}),
+
+      ...(query.action
+        ? {
+            action: {
+              contains: query.action,
+              mode: "insensitive",
+            },
+          }
+        : {}),
+
+      ...(query.entityType
+        ? {
+            entityType: {
+              contains: query.entityType,
+              mode: "insensitive",
+            },
+          }
+        : {}),
+
+      ...(query.entityId
+        ? {
+            entityId: query.entityId,
+          }
+        : {}),
+
+      ...(query.from || query.to
         ? {
             createdAt: {
-              ...(query.from ? { gte: new Date(query.from) } : {}),
-              ...(query.to ? { lte: new Date(query.to) } : {}),
+              ...(query.from
+                ? {
+                    gte: new Date(query.from),
+                  }
+                : {}),
+
+              ...(query.to
+                ? {
+                    lte: new Date(query.to),
+                  }
+                : {}),
             },
           }
         : {}),
     };
 
-    const [items, total] = await prisma.$transaction([
+    const [data, total] = await prisma.$transaction([
       prisma.auditLog.findMany({
         where,
         include: {
@@ -269,15 +456,20 @@ export const AdminService = {
             select: safeUserSelect,
           },
         },
-        orderBy: { createdAt: sortOrder },
+        orderBy: {
+          createdAt: sortOrder,
+        },
         skip,
         take: limit,
       }),
-      prisma.auditLog.count({ where }),
+
+      prisma.auditLog.count({
+        where,
+      }),
     ]);
 
     return {
-      items,
+      data,
       meta: {
         page,
         limit,
@@ -285,18 +477,30 @@ export const AdminService = {
         totalPages: getTotalPages(total, limit),
       },
     };
-  },
+  }
 
-  async listPayments(query: AdminPaymentsQuery): Promise<PaginatedResult<unknown>> {
+  static async listPayments(
+    query: AdminPaymentsQuery,
+  ): Promise<PaginatedResult<unknown>> {
     const { page, limit, skip } = getPagination(query.page, query.limit);
+
     const sortOrder = query.sortOrder ?? "desc";
 
     const where: Prisma.PaymentWhereInput = {
-      ...(query.status ? { status: query.status as any } : {}),
-      ...(query.companyId ? { companyId: query.companyId } : {}),
+      ...(query.status
+        ? {
+            status: query.status as PaymentStatus,
+          }
+        : {}),
+
+      ...(query.companyId
+        ? {
+            companyId: query.companyId,
+          }
+        : {}),
     };
 
-    const [items, total] = await prisma.$transaction([
+    const [payments, total] = await prisma.$transaction([
       prisma.payment.findMany({
         where,
         include: {
@@ -308,20 +512,25 @@ export const AdminService = {
             },
           },
         },
-        orderBy: { createdAt: sortOrder },
+        orderBy: {
+          createdAt: sortOrder,
+        },
         skip,
         take: limit,
       }),
-      prisma.payment.count({ where }),
+
+      prisma.payment.count({
+        where,
+      }),
     ]);
 
-    const normalizedItems = items.map((payment) => ({
+    const data = payments.map((payment) => ({
       ...payment,
       amount: decimalToNumber(payment.amount),
     }));
 
     return {
-      items: normalizedItems,
+      data,
       meta: {
         page,
         limit,
@@ -329,5 +538,5 @@ export const AdminService = {
         totalPages: getTotalPages(total, limit),
       },
     };
-  },
-};
+  }
+}

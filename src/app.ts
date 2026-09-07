@@ -13,6 +13,7 @@ import invitationRouter from "./modules/invitation/invitation.routes";
 import candidateRouter from "./modules/candidate/candidate.routes";
 import attemptRouter from "./modules/attempt/attempt.routes";
 import evaluationRouter from "./modules/evaluation/evaluation.routes";
+import { adminRouter } from "./modules/admin";
 import paymentRouter, {
   paymentWebhookRouter,
 } from "./modules/payment/payment.routes";
@@ -20,9 +21,8 @@ import {
   bkashPaymentCallbackRouter,
   bkashPaymentRouter,
 } from "./modules/bkash-payment";
-import { authorize } from "./modules/auth/authorize.middleware";
-import { authenticate } from "./modules/auth/auth.middleware";
-import { createAdminRouter } from "./modules/admin";
+
+
 import { swaggerSpec } from "./app/config/swagger";
 import swaggerUi from "swagger-ui-express";
 
@@ -60,10 +60,13 @@ app.use("/api/v1/attempts", attemptRouter);
 app.use("/api/v1/evaluation", evaluationRouter);
 app.use("/api/v1/payments", paymentWebhookRouter);
 app.use("/api/v1/payments", paymentRouter);
+app.use("/api/admin", adminRouter);
 app.use("/api/v1/bkash-payments", bkashPaymentCallbackRouter);
 app.use("/api/v1/bkash-payments", bkashPaymentRouter);
 app.use("/api/v1", bkashPaymentCallbackRouter);
-app.use("/api/v1/admin", createAdminRouter({ authenticate, authorize }));
+
+
+app.use("/api/admin", adminRouter);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /*
