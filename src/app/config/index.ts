@@ -20,5 +20,8 @@ export default {
   cloudinary_api_key: process.env.CLOUDINARY_API_KEY,
   cloudinary_api_secret: process.env.CLOUDINARY_API_SECRET,
   frontend_url: process.env.FRONTEND_URL,
-
+  stripe_secret_key: process.env.STRIPE_SECRET_KEY,
+  stripe_webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
+  stripe_success_url: process.env.STRIPE_SUCCESS_URL,
+  stripe_cancel_url: process.env.STRIPE_CANCEL_URL,
 };

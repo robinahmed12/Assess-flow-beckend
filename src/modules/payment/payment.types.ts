@@ -1,22 +1,23 @@
-import { Request } from "express";
 import { CreditPackageCode } from "../../app/common/utils/payment.constants";
 
-export type AuthUser = {
-  id: string;
-  role: "ADMIN" | "RECRUITER" | "CANDIDATE" | string;
-  email?: string;
-};
+export type PaymentStatusFilter = "PENDING" | "SUCCEEDED" | "FAILED" | "REFUNDED";
 
-export type AuthenticatedRequest = Request & {
-  user?: AuthUser;
-};
-
-export type CreateCheckoutPayload = {
+export interface CreateCheckoutInput {
   packageCode: CreditPackageCode;
-};
+}
 
-export type PaymentListQuery = {
-  page?: number;
-  limit?: number;
-  status?: string;
-};
+export interface PaymentListQuery {
+  page: number;
+  limit: number;
+  status?: PaymentStatusFilter;
+}
+
+export interface WebhookProcessResult {
+  processed: boolean;
+  idempotent?: boolean;
+  eventType?: string;
+  message?: string;
+  paymentId?: string;
+  payment?: unknown;
+  companyCredits?: number;
+}
