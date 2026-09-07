@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-        "build": "tsup",
+    "build": "tsup",
     "start": "node dist/server.js"
   },
   "prisma": {
@@ -17,13 +17,17 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.0",
     "@prisma/client": "^7.10.0",
+    "@types/ejs": "^3.1.5",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
+    "ejs": "^6.0.1",
     "express": "^5.2.1",
     "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^10.0.0",
     "prisma": "^7.10.0",
+    "redis": "^6.2.1",
     "stripe": "^22.6.1",
     "swagger-jsdoc": "^6.3.0",
     "swagger-ui-express": "^5.0.1",

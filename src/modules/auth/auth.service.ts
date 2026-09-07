@@ -1,14 +1,67 @@
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
+import ejs from "ejs";
+import path from "path";
 
 import { UserRole, UserStatus } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { generateAccessToken } from "../../app/common/utils/jwt";
 import { AppError } from "../../app/common/errors/app-error";
-import { LoginInput, RegisterInput } from "./auth.types";
+import {
+  LoginInput,
+  RegisterInput,
+  VerifyRegistrationOtpInput,
+} from "./auth.types";
+import { connectRedis, redisClient, } from "../../lib/redisClinet";
+import { transporter } from "../../lib/nodemailer";
+import config from "../../app/config";
 
+const REGISTRATION_OTP_TTL_SECONDS = 5 * 60;
+const REGISTRATION_OTP_EXPIRY_MINUTES = REGISTRATION_OTP_TTL_SECONDS / 60;
+
+interface PendingRegistrationData {
+  name: string;
+  email: string;
+  passwordHash: string;
+  role: UserRole;
+  otp: string;
+}
+
+const getRegistrationOtpKey = (email: string) => `registration:otp:${email}`;
+
+const generateOtp = () => crypto.randomInt(100000, 1000000).toString();
+
+const sendVerificationOtpEmail = async ({
+  email,
+  name,
+  otp,
+}: {
+  email: string;
+  name: string;
+  otp: string;
+}) => {
+  const templatePath = path.join(
+    process.cwd(),
+    "template",
+    "verify-email.ejs"
+  );
+
+  const html = await ejs.renderFile(templatePath, {
+    name,
+    email,
+    otp,
+    expiresInMinutes: REGISTRATION_OTP_EXPIRY_MINUTES,
+  });
+
+  await transporter.sendMail({
+    from: config.smtp_user,
+    to: email,
+    subject: "Verify your email address",
+    html,
+  });
+};
 
 export class AuthService {
-
   static async register(data: RegisterInput) {
     const existingUser = await prisma.user.findUnique({
       where: {
@@ -20,17 +73,78 @@ export class AuthService {
       throw new AppError("Email is already registered", 409);
     }
 
+    const otp = generateOtp();
     const passwordHash = await bcrypt.hash(data.password, 12);
+    const pendingRegistrationData: PendingRegistrationData = {
+      name: data.name,
+      email: data.email,
+      passwordHash,
+      role: data.role || UserRole.CANDIDATE,
+      otp,
+    };
+
+    await connectRedis();
+
+    await redisClient.set(
+      getRegistrationOtpKey(data.email),
+      JSON.stringify(pendingRegistrationData),
+      {
+        EX: REGISTRATION_OTP_TTL_SECONDS,
+      }
+    );
+
+    await sendVerificationOtpEmail({
+      email: data.email,
+      name: data.name,
+      otp,
+    });
+
+    return {
+      email: data.email,
+      expiresInMinutes: REGISTRATION_OTP_EXPIRY_MINUTES,
+    };
+  }
+
+  static async verifyRegistrationOtp(data: VerifyRegistrationOtpInput) {
+    await connectRedis();
+
+    const redisKey = getRegistrationOtpKey(data.email);
+    const pendingRegistration = await redisClient.get(redisKey);
+
+    if (!pendingRegistration) {
+      throw new AppError("OTP expired or registration request not found", 400);
+    }
+
+    const pendingRegistrationData = JSON.parse(
+      pendingRegistration
+    ) as PendingRegistrationData;
+
+    if (pendingRegistrationData.otp !== data.otp) {
+      throw new AppError("Invalid OTP", 400);
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        email: data.email,
+      },
+    });
+
+    if (existingUser) {
+      await redisClient.del(redisKey);
+      throw new AppError("Email is already registered", 409);
+    }
 
     const user = await prisma.user.create({
       data: {
-        name: data.name,
-        email: data.email,
-        passwordHash,
-        role: data.role || UserRole.CANDIDATE,
+        name: pendingRegistrationData.name,
+        email: pendingRegistrationData.email,
+        passwordHash: pendingRegistrationData.passwordHash,
+        role: pendingRegistrationData.role,
         status: UserStatus.ACTIVE,
       },
     });
+
+    await redisClient.del(redisKey);
 
     const accessToken = generateAccessToken({
       userId: user.id,
