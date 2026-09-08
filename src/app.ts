@@ -25,6 +25,7 @@ import {
 
 import { swaggerSpec } from "./app/config/swagger";
 import swaggerUi from "swagger-ui-express";
+import { dashboardRouter } from "./modules/dashboard";
 
 const app: Application = express();
 
@@ -60,13 +61,11 @@ app.use("/api/v1/attempts", attemptRouter);
 app.use("/api/v1/evaluation", evaluationRouter);
 app.use("/api/v1/stripe-payments", paymentWebhookRouter);
 app.use("/api/v1/stripe-payments", paymentRouter);
-app.use("/api/admin", adminRouter);
+app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/bkash-payments", bkashPaymentCallbackRouter);
 app.use("/api/v1/bkash-payments", bkashPaymentRouter);
 app.use("/api/v1", bkashPaymentCallbackRouter);
-
-
-app.use("/api/admin", adminRouter);
+app.use("/api/v1/dashboard", dashboardRouter);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 /*

@@ -8,7 +8,7 @@ model Attempt {
 
   submittedAt DateTime?
 
-  score Float @default(0)
+  score Float? @default(0)
 
   percentage Float?
 
