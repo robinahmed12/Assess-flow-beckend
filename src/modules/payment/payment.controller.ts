@@ -1,65 +1,65 @@
-import { NextFunction, Request, Response } from "express";
-import { getAuthUser } from "../../app/common/middleware/payment.auth";
-import { paymentService } from "./payment.service";
-import { AuthenticatedRequest } from "./payment.types";
+import { Request, Response } from "express";
+
+import { PaymentService } from "./payment.service";
 import { sendResponse } from "../../app/common/responses/api-response";
+import { CreateCheckoutInput, PaymentListQuery } from "./payment.types";
 
-const success = (res: Response, message: string, data: unknown, statusCode = 200) => {
-  return res.status(statusCode).json({
-    success: true,
-    message,
-    data,
-  });
-};
+export class PaymentController {
+  static async createCheckout(req: Request, res: Response) {
+    const result = await PaymentService.createCheckoutSession(
+      req.user!.id,
+      req.body as CreateCheckoutInput
+    );
 
-export const paymentController = {
-  async createCheckout(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-      const user = getAuthUser(req);
-      const result = await paymentService.createCheckoutSession(user.id, req.body.packageCode);
-      return sendResponse(res, 201, "Checkout session created successfully.", result);
-    } catch (error) {
-      next(error);
-    }
-  },
+    return sendResponse(
+      res,
+      201,
+      "Checkout session created successfully",
+      result
+    );
+  }
 
-  async listPayments(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-      const user = getAuthUser(req);
-      const page = Number(req.query.page || 1);
-      const limit = Number(req.query.limit || 20);
-      const status = typeof req.query.status === "string" ? req.query.status : undefined;
+  static async listPayments(req: Request, res: Response) {
+    const result = await PaymentService.listRecruiterPayments(
+      req.user!.id,
+      req.query as unknown as PaymentListQuery
+    );
 
-      const result = await paymentService.listRecruiterPayments(user.id, page, limit, status);
-      return success(res, "Payments retrieved successfully.", result);
-    } catch (error) {
-      next(error);
-    }
-  },
+    return sendResponse(
+      res,
+      200,
+      "Payments fetched successfully",
+      result
+    );
+  }
 
-  async getPaymentById(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-      const user = getAuthUser(req);
-      const result = await paymentService.getRecruiterPaymentById(user.id, req.params.id as string);
-      return success(res, "Payment retrieved successfully.", result);
-    } catch (error) {
-      next(error);
-    }
-  },
+  static async getPaymentById(req: Request, res: Response) {
+    const result = await PaymentService.getRecruiterPaymentById(
+      req.user!.id,
+      req.params.id as string
+    );
 
-  async handleWebhook(req: Request, res: Response, next: NextFunction) {
-    try {
-      const signature = req.headers["stripe-signature"];
-      const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body));
-      const event = paymentService.constructWebhookEvent(rawBody, signature);
-      const result = await paymentService.handleWebhookEvent(event);
+    return sendResponse(
+      res,
+      200,
+      "Payment fetched successfully",
+      result
+    );
+  }
 
-      return res.status(200).json({
-        received: true,
-        result,
-      });
-    } catch (error) {
-      next(error);
-    }
-  },
-};
+  static async handleWebhook(req: Request, res: Response) {
+    const signature = req.headers["stripe-signature"];
+
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body
+      : Buffer.from(JSON.stringify(req.body));
+
+    const event = PaymentService.constructWebhookEvent(rawBody, signature);
+    const result = await PaymentService.handleWebhookEvent(event);
+
+    return res.status(200).json({
+      received: true,
+      result,
+    });
+  }
+}

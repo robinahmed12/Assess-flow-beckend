@@ -1,20 +1,3 @@
-import { Request, RequestHandler } from "express";
-
-export interface AuthenticatedUser {
-  id: string;
-  role: string;
-  email?: string;
-}
-
-export interface AuthenticatedRequest extends Request {
-  user?: AuthenticatedUser;
-}
-
-export interface BkashPaymentRouteDeps {
-  authenticate: RequestHandler;
-  authorizeRecruiter: RequestHandler;
-}
-
 export interface BkashConfig {
   baseUrl: string;
   appKey: string;
@@ -54,7 +37,11 @@ export interface BkashCreatePaymentResponse {
 export interface BkashExecutePaymentResponse {
   statusCode?: string;
   statusMessage?: string;
+
+  // bKash may return one of these depending on API/version
   paymentID?: string;
+  paymentId?: string;
+
   trxID?: string;
   transactionStatus?: string;
   amount?: string;
@@ -62,9 +49,11 @@ export interface BkashExecutePaymentResponse {
   intent?: string;
   merchantInvoiceNumber?: string;
   paymentExecuteTime?: string;
+
   [key: string]: unknown;
 }
 
-export interface BkashQueryPaymentResponse extends BkashExecutePaymentResponse {
+export interface BkashQueryPaymentResponse
+  extends BkashExecutePaymentResponse {
   paymentCreateTime?: string;
 }

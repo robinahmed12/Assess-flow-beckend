@@ -1,15 +1,15 @@
-export class AdminError extends Error {
-  public readonly statusCode: number;
-
-  constructor(message: string, statusCode = 400) {
-    super(message);
-    this.statusCode = statusCode;
-  }
-}
+import { AppError } from "../../app/common/errors/app-error";
 
 export const adminErrors = {
-  unauthorized: () => new AdminError("Unauthorized", 401),
-  forbidden: () => new AdminError("Forbidden", 403),
-  userNotFound: () => new AdminError("User not found", 404),
-  cannotUpdateSelf: () => new AdminError("Admin cannot change their own status from this endpoint", 409),
+  unauthorized: () => new AppError("Unauthorized", 401),
+
+  forbidden: () => new AppError("Forbidden", 403),
+
+  userNotFound: () => new AppError("User not found", 404),
+
+  cannotUpdateSelf: () =>
+    new AppError(
+      "Admin cannot change their own status from this endpoint",
+      409
+    ),
 };

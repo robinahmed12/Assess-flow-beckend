@@ -13,6 +13,11 @@ export interface RegisterInput {
   role?: UserRole;
 }
 
+export interface VerifyRegistrationOtpInput {
+  email: string;
+  otp: string;
+}
+
 export interface LoginInput {
   email: string;
   password: string;

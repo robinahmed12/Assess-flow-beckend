@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Assessment Invitation</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f4f6f8; font-family:Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f6f8; padding:30px 0;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff; border-radius:10px; overflow:hidden;">
+          <tr>
+            <td style="padding:30px;">
+              <h2 style="margin:0 0 16px; color:#111827;">
+                You have been invited to an assessment
+              </h2>
+
+              <p style="font-size:15px; color:#374151; line-height:1.6;">
+                Hi <%= candidateName || "Candidate" %>,
+              </p>
+
+              <p style="font-size:15px; color:#374151; line-height:1.6;">
+                You have been invited to complete the following assessment:
+              </p>
+
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0; background:#f9fafb; border-radius:8px;">
+                <tr>
+                  <td style="padding:16px;">
+                    <p style="margin:0 0 8px; font-size:14px; color:#6b7280;">Assessment</p>
+                    <p style="margin:0; font-size:18px; color:#111827; font-weight:bold;">
+                      <%= assessmentTitle %>
+                    </p>
+
+                    <% if (duration) { %>
+                      <p style="margin:12px 0 0; font-size:14px; color:#374151;">
+                        Duration: <strong><%= duration %> minutes</strong>
+                      </p>
+                    <% } %>
+
+                    <p style="margin:12px 0 0; font-size:14px; color:#374151;">
+                      Deadline:
+                      <strong><%= deadline %></strong>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="font-size:15px; color:#374151; line-height:1.6;">
+                Please complete the assessment before the deadline. After the deadline, this invitation link will expire.
+              </p>
+
+              <div style="text-align:center; margin:30px 0;">
+                <a href="<%= invitationLink %>"
+                   style="background:#2563eb; color:#ffffff; text-decoration:none; padding:14px 24px; border-radius:8px; display:inline-block; font-size:15px; font-weight:bold;">
+                  Start Assessment
+                </a>
+              </div>
+
+              <p style="font-size:13px; color:#6b7280; line-height:1.6;">
+                If the button does not work, copy and paste this link into your browser:
+              </p>
+
+              <p style="font-size:13px; color:#2563eb; word-break:break-all;">
+                <%= invitationLink %>
+              </p>
+
+              <p style="font-size:13px; color:#9ca3af; margin-top:30px;">
+                This is an automated email. Please do not reply.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

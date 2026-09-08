@@ -1,38 +1,30 @@
-import { RequestHandler } from "express";
 import { UserRole, UserStatus } from "@prisma/client";
-import { z } from "zod";
 
 export type SortOrder = "asc" | "desc";
 
-export type ValidationSchema = {
-  body?: z.ZodTypeAny;
-  params?: z.ZodTypeAny;
-  query?: z.ZodTypeAny;
-};
+export type UserSortBy =
+  | "createdAt"
+  | "updatedAt"
+  | "email"
+  | "name"
+  | "role"
+  | "status";
 
-export type ValidateRequest = (schema: ValidationSchema) => RequestHandler;
-
-export type AdminRouterDeps = {
-  authenticate: RequestHandler;
-  authorize: (...roles: any[]) => RequestHandler;
-  validateRequest?: ValidateRequest;
-};
-
-export type ListUsersQuery = {
+export interface ListUsersQuery {
   page?: number;
   limit?: number;
   q?: string;
   role?: UserRole;
   status?: UserStatus;
-  sortBy?: "createdAt" | "updatedAt" | "email" | "name" | "role" | "status";
+  sortBy?: UserSortBy;
   sortOrder?: SortOrder;
-};
+}
 
-export type UpdateUserStatusBody = {
+export interface UpdateUserStatusBody {
   status: UserStatus;
-};
+}
 
-export type AuditLogsQuery = {
+export interface AuditLogsQuery {
   page?: number;
   limit?: number;
   actorId?: string;
@@ -42,24 +34,24 @@ export type AuditLogsQuery = {
   from?: string;
   to?: string;
   sortOrder?: SortOrder;
-};
+}
 
-export type AdminPaymentsQuery = {
+export interface AdminPaymentsQuery {
   page?: number;
   limit?: number;
   status?: string;
   companyId?: string;
   sortOrder?: SortOrder;
-};
+}
 
-export type PaginationMeta = {
+export interface PaginationMeta {
   page: number;
   limit: number;
   total: number;
   totalPages: number;
-};
+}
 
-export type PaginatedResult<T> = {
-  items: T[];
+export interface PaginatedResult<T> {
+  data: T[];
   meta: PaginationMeta;
-};
+}

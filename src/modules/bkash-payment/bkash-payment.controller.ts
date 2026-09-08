@@ -1,76 +1,96 @@
-import { NextFunction, Request, Response } from "express";
-import { bkashPaymentService } from "./bkash-payment.service";
-import { AuthenticatedRequest } from "./bkash-payment.types";
-import { bkashPaymentErrors } from "../../app/common/errors/bkash-payment.errors";
+import { Request, Response } from "express";
+import { BkashPaymentService } from "./bkash-payment.service";
 import { sendResponse } from "../../app/common/responses/api-response";
 
-const getAuthUser = (req: AuthenticatedRequest) => {
-  if (!req.user?.id) {
-    throw bkashPaymentErrors.unauthorized();
+export class BkashPaymentController {
+  static async createCheckout(req: Request, res: Response) {
+    const result = await BkashPaymentService.createPayment(
+      req.user!.id,
+      req.body.packageCode,
+    );
+
+    return sendResponse(
+      res,
+      201,
+      "bKash payment created successfully.",
+      result,
+    );
   }
 
-  return req.user;
-};
+  static async executePayment(req: Request, res: Response) {
+    const result = await BkashPaymentService.executePayment(
+      req.body.paymentID,
+    );
 
-export const bkashPaymentController = {
-  async createCheckout(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-      const user = getAuthUser(req);
-      const result = await bkashPaymentService.createPayment(user.id, req.body.packageCode);
-      return sendResponse(res, 201, "bKash payment created successfully.", result);
-    } catch (error) {
-      next(error);
-    }
-  },
+    return sendResponse(
+      res,
+      200,
+      "bKash payment executed successfully.",
+      result,
+    );
+  }
 
-  async executePayment(req: Request, res: Response, next: NextFunction) {
-    try {
-      const result = await bkashPaymentService.executePayment(req.body.paymentID);
-      return sendResponse(res, 200, "bKash payment executed successfully.", result);
-    } catch (error) {
-      next(error);
-    }
-  },
+  static async queryPayment(req: Request, res: Response) {
+    const result = await BkashPaymentService.queryPayment(
+      req.body.paymentID,
+    );
 
-  async queryPayment(req: Request, res: Response, next: NextFunction) {
-    try {
-      const result = await bkashPaymentService.queryPayment(req.body.paymentID);
-      return sendResponse(res, 200, "bKash payment status retrieved successfully.", result);
-    } catch (error) {
-      next(error);
-    }
-  },
+    return sendResponse(
+      res,
+      200,
+      "bKash payment status retrieved successfully.",
+      result,
+    );
+  }
 
-  async handleCallback(req: Request, res: Response, next: NextFunction) {
-    try {
-      const result = await bkashPaymentService.handleCallback(req.query.status, req.query.paymentID);
-      return sendResponse(res, 200, "bKash callback processed successfully.", result);
-    } catch (error) {
-      next(error);
-    }
-  },
+  static async handleCallback(req: Request, res: Response) {
+    const result = await BkashPaymentService.handleCallback(
+      req.query.status,
+      req.query.paymentID,
+    );
 
-  async listPayments(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-      const user = getAuthUser(req);
-      const page = Number(req.query.page || 1);
-      const limit = Number(req.query.limit || 20);
-      const status = typeof req.query.status === "string" ? req.query.status : undefined;
+    return sendResponse(
+      res,
+      200,
+      "bKash callback processed successfully.",
+      result,
+    );
+  }
 
-      const result = await bkashPaymentService.listRecruiterPayments(user.id, page, limit, status);
-      return sendResponse(res, 200, "Payments retrieved successfully.", result);
-    } catch (error) {
-      next(error);
-    }
-  },
+  static async listPayments(req: Request, res: Response) {
+    const page = Number(req.query.page ?? 1);
+    const limit = Number(req.query.limit ?? 20);
+    const status =
+      typeof req.query.status === "string"
+        ? req.query.status
+        : undefined;
 
-  async getPaymentById(req: AuthenticatedRequest, res: Response, next: NextFunction) {
-    try {
-      const user = getAuthUser(req);
-      const result = await bkashPaymentService.getRecruiterPaymentById(user.id, req.params.id as string);
-      return sendResponse(res, 200, "Payment retrieved successfully.", result);
-    } catch (error) {
-      next(error);
-    }
-  },
-};
+    const result = await BkashPaymentService.listRecruiterPayments(
+      req.user!.id,
+      page,
+      limit,
+      status,
+    );
+
+    return sendResponse(
+      res,
+      200,
+      "Payments retrieved successfully.",
+      result,
+    );
+  }
+
+  static async getPaymentById(req: Request, res: Response) {
+    const result = await BkashPaymentService.getRecruiterPaymentById(
+      req.user!.id,
+      req.params.id as string,
+    );
+
+    return sendResponse(
+      res,
+      200,
+      "Payment retrieved successfully.",
+      result,
+    );
+  }
+}

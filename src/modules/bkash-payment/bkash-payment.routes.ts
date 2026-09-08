@@ -1,60 +1,61 @@
 import { Router } from "express";
-import { bkashPaymentController } from "./bkash-payment.controller";
-import { BkashPaymentRouteDeps } from "./bkash-payment.types";
+import { UserRole } from "@prisma/client";
+
+import { BkashPaymentController } from "./bkash-payment.controller";
 import {
   createBkashPaymentSchema,
   executeBkashPaymentSchema,
   listPaymentsSchema,
   paymentIdParamSchema,
   queryBkashPaymentSchema,
-  validateRequest,
 } from "./bkash-payment.validation";
+import { authenticate } from "../auth/auth.middleware";
+import { authorize } from "../auth/authorize.middleware";
+import { validateRequest } from "../../app/common/middleware/validate-request.middleware";
+import { asyncHandler } from "../../app/common/utils/async-handler";
 
 export const bkashPaymentCallbackRouter = Router();
 
 bkashPaymentCallbackRouter.get(
   "/bkash/callback",
-  bkashPaymentController.handleCallback,
+  //validateRequest(bkashCallbackSchema),
+  asyncHandler(BkashPaymentController.handleCallback),
 );
 
-export const createBkashPaymentRouter = ({ authenticate, authorizeRecruiter }: BkashPaymentRouteDeps) => {
-  const router = Router();
+const router = Router();
 
-  router.post(
-    "/checkout",
-    authenticate,
-    authorizeRecruiter,
-    //validateRequest(createBkashPaymentSchema),
-    bkashPaymentController.createCheckout,
-  );
+// These routes were public in the existing implementation.
+router.post(
+  "/bkash/execute",
+  validateRequest(executeBkashPaymentSchema),
+  asyncHandler(BkashPaymentController.executePayment),
+);
 
-  router.post(
-    "/bkash/execute",
-   // validateRequest(executeBkashPaymentSchema),
-    bkashPaymentController.executePayment,
-  );
+router.post(
+  "/bkash/query",
+  validateRequest(queryBkashPaymentSchema),
+  asyncHandler(BkashPaymentController.queryPayment),
+);
 
-  router.post(
-    "/bkash/query",
-    //validateRequest(queryBkashPaymentSchema),
-    bkashPaymentController.queryPayment,
-  );
+router.use(authenticate);
+router.use(authorize(UserRole.RECRUITER));
 
-  router.get(
-    "/",
-    authenticate,
-    authorizeRecruiter,
-    //validateRequest(listPaymentsSchema),
-    bkashPaymentController.listPayments,
-  );
+router.post(
+  "/checkout",
+  validateRequest(createBkashPaymentSchema),
+  asyncHandler(BkashPaymentController.createCheckout),
+);
 
-  router.get(
-    "/:id",
-    authenticate,
-    authorizeRecruiter,
-    //validateRequest(paymentIdParamSchema),
-    bkashPaymentController.getPaymentById,
-  );
+router.get(
+  "/",
+  validateRequest(listPaymentsSchema),
+  asyncHandler(BkashPaymentController.listPayments),
+);
 
-  return router;
-};
+router.get(
+  "/:id",
+  validateRequest(paymentIdParamSchema),
+  asyncHandler(BkashPaymentController.getPaymentById),
+);
+
+export default router;

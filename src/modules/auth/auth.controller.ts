@@ -3,10 +3,20 @@ import { Request, Response } from "express";
 import { AuthService } from "./auth.service";
 import { sendResponse } from "../../app/common/responses/api-response";
 
-
 export class AuthController {
   static async register(req: Request, res: Response) {
     const result = await AuthService.register(req.body);
+
+    return sendResponse(
+      res,
+      200,
+      "Verification OTP sent to your email",
+      result
+    );
+  }
+
+  static async verifyRegistrationOtp(req: Request, res: Response) {
+    const result = await AuthService.verifyRegistrationOtp(req.body);
 
     return sendResponse(
       res,

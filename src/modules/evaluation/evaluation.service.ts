@@ -8,6 +8,10 @@ import {
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../app/common/errors/app-error";
 import { EvaluateAnswerInput, SubmissionsQuery } from "./evaluation.types";
+import ejs from "ejs";
+import path from "path";
+import { transporter } from "../../lib/nodemailer";
+import config from "../../app/config";
 
 type PrismaTx = Prisma.TransactionClient;
 
@@ -500,10 +504,55 @@ export class EvaluationService {
     });
   }
 
+  private static buildCandidateResultLink(attemptId: string) {
+    return `${config.frontend_url}/assessment-results/${attemptId}`;
+  }
+
+  private static async sendEvaluationResultEmail(params: {
+    candidateEmail: string;
+    candidateName: string | null;
+    assessmentTitle: string;
+    attemptId: string;
+    totalScore: number;
+    maxScore: number;
+    percentage: number;
+    passed: boolean;
+    resultVisibility: ResultVisibility;
+  }) {
+    const resultLink = this.buildCandidateResultLink(params.attemptId);
+
+    const showResultDetails =
+      params.resultVisibility !== ResultVisibility.HIDDEN;
+
+    const templatePath = path.join(
+      process.cwd(),
+      "template",
+      "evaluation-result-email.ejs",
+    );
+
+    const emailHtml = await ejs.renderFile(templatePath, {
+      candidateName: params.candidateName,
+      assessmentTitle: params.assessmentTitle,
+      totalScore: params.totalScore,
+      maxScore: params.maxScore,
+      percentage: params.percentage,
+      passed: params.passed,
+      resultLink,
+      showResultDetails,
+    });
+
+    await transporter.sendMail({
+      from: config.smtp_user,
+      to: params.candidateEmail,
+      subject: `Assessment result: ${params.assessmentTitle}`,
+      html: emailHtml,
+    });
+  }
+
   static async finalizeEvaluation(userId: string, attemptId: string) {
     await this.getAttemptForRecruiter(userId, attemptId);
 
-    return prisma.$transaction(async (tx) => {
+    const finalizedResult = await prisma.$transaction(async (tx) => {
       const attempt = await tx.attempt.findUnique({
         where: {
           id: attemptId,
@@ -511,6 +560,7 @@ export class EvaluationService {
         include: {
           assessment: {
             include: {
+              company: true,
               problems: {
                 orderBy: {
                   order: "asc",
@@ -521,6 +571,17 @@ export class EvaluationService {
                       options: true,
                     },
                   },
+                },
+              },
+            },
+          },
+          invitation: {
+            include: {
+              candidate: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
                 },
               },
             },
@@ -568,6 +629,7 @@ export class EvaluationService {
       for (const assessmentProblem of attempt.assessment.problems) {
         const problem = assessmentProblem.problem;
         const problemMaxScore = this.getProblemMaxScore(problem);
+
         maxScore += problemMaxScore;
 
         const existingAnswer = attempt.answers.find(
@@ -617,6 +679,7 @@ export class EvaluationService {
         }
 
         totalScore += existingAnswer.score;
+
         finalizedAnswers.push({
           answerId: existingAnswer.id,
           problemId: problem.id,
@@ -632,7 +695,9 @@ export class EvaluationService {
       }
 
       const percentage = this.getPercentage(totalScore, maxScore);
-      const passed = totalScore >= attempt.assessment.passingScore!;
+
+      const passingScore = attempt.assessment.passingScore ?? 0;
+      const passed = totalScore >= passingScore;
 
       const updatedAttempt = await tx.attempt.update({
         where: {
@@ -668,8 +733,38 @@ export class EvaluationService {
         maxScore,
         percentage: updatedAttempt.percentage,
         passed: updatedAttempt.passed,
+
+        candidate: {
+          id: attempt.invitation.candidate.id,
+          name: attempt.invitation.candidate.name,
+          email: attempt.invitation.candidate.email,
+        },
+
+        assessment: {
+          id: attempt.assessment.id,
+          title: attempt.assessment.title,
+          resultVisibility: attempt.assessment.resultVisibility,
+        },
       };
     });
+
+    try {
+      await this.sendEvaluationResultEmail({
+        candidateEmail: finalizedResult.candidate.email,
+        candidateName: finalizedResult.candidate.name,
+        assessmentTitle: finalizedResult.assessment.title,
+        attemptId: finalizedResult.attemptId,
+        totalScore: finalizedResult.totalScore ?? 0,
+        maxScore: finalizedResult.maxScore,
+        percentage: finalizedResult.percentage ?? 0,
+        passed: finalizedResult.passed ?? false,
+        resultVisibility: finalizedResult.assessment.resultVisibility,
+      });
+    } catch (error) {
+      console.error("Failed to send evaluation result email", error);
+    }
+
+    return finalizedResult;
   }
 
   static async getAttemptResult(userId: string, attemptId: string) {

@@ -29,3 +29,13 @@ export const assessmentInvitationIdSchema = z.object({
 
   query: z.object({}),
 });
+
+export const invitationTokenSchema = z.object({
+  body: z.object({}),
+
+  params: z.object({
+    token: z.string().min(32, "Invalid invitation token"),
+  }),
+
+  query: z.object({}),
+});

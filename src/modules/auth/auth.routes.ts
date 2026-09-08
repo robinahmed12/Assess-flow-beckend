@@ -6,10 +6,10 @@ import { authenticate } from "./auth.middleware";
 import {
   loginSchema,
   registerSchema,
+  verifyRegistrationOtpSchema,
 } from "./auth.validation";
 import { validateRequest } from "../../app/common/middleware/validate-request.middleware";
 import { asyncHandler } from "../../app/common/utils/async-handler";
-
 
 const router = Router();
 
@@ -17,6 +17,12 @@ router.post(
   "/register",
   validateRequest(registerSchema),
   asyncHandler(AuthController.register)
+);
+
+router.post(
+  "/verify-registration-otp",
+  validateRequest(verifyRegistrationOtpSchema),
+  asyncHandler(AuthController.verifyRegistrationOtp)
 );
 
 router.post(
