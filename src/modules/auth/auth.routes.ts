@@ -4,6 +4,7 @@ import { AuthController } from "./auth.controller";
 import { authenticate } from "./auth.middleware";
 
 import {
+  googleLoginSchema,
   loginSchema,
   registerSchema,
   verifyRegistrationOtpSchema,
@@ -29,6 +30,12 @@ router.post(
   "/login",
   validateRequest(loginSchema),
   asyncHandler(AuthController.login)
+);
+
+router.post(
+  "/google",
+  validateRequest(googleLoginSchema),
+  asyncHandler(AuthController.googleLogin)
 );
 
 router.get(

@@ -8,13 +8,15 @@ import { prisma } from "../../lib/prisma";
 import { generateAccessToken } from "../../app/common/utils/jwt";
 import { AppError } from "../../app/common/errors/app-error";
 import {
+  GoogleLoginInput,
   LoginInput,
   RegisterInput,
   VerifyRegistrationOtpInput,
 } from "./auth.types";
-import { connectRedis, redisClient, } from "../../lib/redisClinet";
+import { connectRedis, redisClient } from "../../lib/redisClinet";
 import { transporter } from "../../lib/nodemailer";
 import config from "../../app/config";
+import { googleOAuthClient } from "../../lib/google-auth";
 
 const REGISTRATION_OTP_TTL_SECONDS = 5 * 60;
 const REGISTRATION_OTP_EXPIRY_MINUTES = REGISTRATION_OTP_TTL_SECONDS / 60;
@@ -45,7 +47,7 @@ const sendVerificationOtpEmail = async ({
     "src",
     "app",
     "template",
-    "verify-email.ejs"
+    "email-verify.ejs",
   );
 
   const html = await ejs.renderFile(templatePath, {
@@ -92,7 +94,7 @@ export class AuthService {
       JSON.stringify(pendingRegistrationData),
       {
         EX: REGISTRATION_OTP_TTL_SECONDS,
-      }
+      },
     );
 
     await sendVerificationOtpEmail({
@@ -118,7 +120,7 @@ export class AuthService {
     }
 
     const pendingRegistrationData = JSON.parse(
-      pendingRegistration
+      pendingRegistration,
     ) as PendingRegistrationData;
 
     if (pendingRegistrationData.otp !== data.otp) {
@@ -180,9 +182,16 @@ export class AuthService {
       throw new AppError("Your account is not active", 403);
     }
 
+    if (!user.passwordHash) {
+      throw new AppError(
+        "This account does not have a password. Please sign in with Google.",
+        401,
+      );
+    }
+
     const isPasswordValid = await bcrypt.compare(
       data.password,
-      user.passwordHash
+      user.passwordHash,
     );
 
     if (!isPasswordValid) {
@@ -202,6 +211,103 @@ export class AuthService {
         email: user.email,
         role: user.role,
       },
+
+      accessToken,
+    };
+  }
+
+  static async googleLogin(data: GoogleLoginInput) {
+    let ticket;
+
+    try {
+      ticket = await googleOAuthClient.verifyIdToken({
+        idToken: data.credential,
+        audience: config.google_client_id,
+      });
+    } catch {
+      throw new AppError("Invalid Google token", 401);
+    }
+
+    const payload = ticket.getPayload();
+
+    if (!payload || !payload.sub || !payload.email || !payload.email_verified) {
+      throw new AppError("Invalid Google account", 401);
+    }
+
+    const googleId = payload.sub;
+    const email = payload.email.toLowerCase();
+
+    // First identify the user by Google's stable account ID.
+    let user = await prisma.user.findUnique({
+      where: {
+        googleId,
+      },
+    });
+
+    // If this Google account has never been linked,
+    // check whether the email already belongs to a local account.
+    if (!user) {
+      const existingUser = await prisma.user.findUnique({
+        where: {
+          email,
+        },
+      });
+
+      if (existingUser) {
+        if (existingUser.googleId && existingUser.googleId !== googleId) {
+          throw new AppError(
+            "This email is already linked to another Google account",
+            409,
+          );
+        }
+
+        // Link existing verified local account with Google.
+        user = await prisma.user.update({
+          where: {
+            id: existingUser.id,
+          },
+          data: {
+            googleId,
+          },
+        });
+      } else {
+        // First Google login -> create account.
+        user = await prisma.user.create({
+          data: {
+            name: payload.name?.trim() || email.split("@")[0],
+
+            email,
+
+            googleId,
+
+            // Google users do not need a local password.
+            passwordHash: null,
+
+            role: UserRole.CANDIDATE,
+            status: UserStatus.ACTIVE,
+          },
+        });
+      }
+    }
+
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new AppError("Your account is not active", 403);
+    }
+
+    const accessToken = generateAccessToken({
+      userId: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    return {
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+
       accessToken,
     };
   }

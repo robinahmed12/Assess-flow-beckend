@@ -24,4 +24,5 @@ export default {
   stripe_webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
   stripe_success_url: process.env.STRIPE_SUCCESS_URL,
   stripe_cancel_url: process.env.STRIPE_CANCEL_URL,
+  google_client_id: process.env.GOOGLE_CLIENT_ID!,
 };
