@@ -1,7 +1,11 @@
 {
   "name": "developer-assessment-platform",
   "version": "1.0.0",
-  "main": "index.js",
+  "type": "module",
+   "main": "src/server.ts",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsup",
