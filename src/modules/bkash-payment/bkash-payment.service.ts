@@ -309,7 +309,7 @@ export class BkashPaymentService {
     const result = await prisma.$transaction(async (tx) => {
       const payment = await tx.payment.findUnique({
         where: {
-          id: params.paymentId as string,
+          id: params.paymentId,
         },
       });
 
@@ -367,14 +367,15 @@ export class BkashPaymentService {
       return {
         processed: true,
         idempotent: false,
+        paymentId: updatedPayment.id,
         payment: updatedPayment,
         companyCredits: updatedCompany.credits,
       };
     });
 
-    if (!result.idempotent && result.payment?.id) {
+    if (result.paymentId) {
       try {
-        await this.sendPaymentSuccessInvoiceEmail(result.payment.id);
+        await this.sendPaymentSuccessInvoiceEmail(result.paymentId);
       } catch (error) {
         console.error("Failed to send payment invoice email", error);
       }
@@ -533,6 +534,8 @@ export class BkashPaymentService {
   }
 
   private static async sendPaymentSuccessInvoiceEmail(paymentId: string) {
+    console.log("Sending invoice for payment:", paymentId);
+
     const payment = await prisma.payment.findUnique({
       where: {
         id: paymentId,
@@ -553,17 +556,21 @@ export class BkashPaymentService {
     });
 
     if (!payment) {
+      console.log("Invoice email skipped: payment not found");
       return;
     }
 
     if (!payment.company?.owner?.email) {
+      console.log("Invoice email skipped: recruiter email not found");
       return;
     }
 
-    // Optional duplicate prevention if you add invoiceEmailSentAt field
-    if ("invoiceEmailSentAt" in payment && payment.invoiceEmailSentAt) {
+    if (payment.invoiceEmailSentAt) {
+      console.log("Invoice email skipped: already sent");
       return;
     }
+
+    console.log("Generating invoice PDF...");
 
     const invoiceNumber =
       payment.invoiceNumber || InvoiceService.generateInvoiceNumber(payment.id);
@@ -592,6 +599,8 @@ export class BkashPaymentService {
       status: payment.status,
     });
 
+    console.log("Sending payment success email...");
+
     await PaymentEmailService.sendPaymentSuccessEmail({
       to: payment.company.owner.email,
       recruiterName: payment.company.owner.name,
@@ -608,7 +617,6 @@ export class BkashPaymentService {
       invoicePdfBuffer,
     });
 
-    // Optional if you add invoiceNumber + invoiceEmailSentAt fields
     await prisma.payment.update({
       where: {
         id: payment.id,
@@ -618,5 +626,7 @@ export class BkashPaymentService {
         invoiceEmailSentAt: new Date(),
       },
     });
+
+    console.log("Invoice email sent successfully");
   }
 }

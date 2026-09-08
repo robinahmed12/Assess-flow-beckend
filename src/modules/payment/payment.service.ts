@@ -8,6 +8,8 @@ import {
 import { paymentErrors } from "../../app/common/errors/payment.errors";
 import config from "../../app/config";
 import { PaymentListQuery, WebhookProcessResult } from "./payment.types";
+import { PaymentEmailService } from "./payment-email.service";
+import { InvoiceService } from "../invoice";
 
 type PaymentFailureStatus = "FAILED";
 
@@ -77,7 +79,7 @@ export class PaymentService {
     recruiterId: string,
     data: {
       packageCode: CreditPackageCode;
-    }
+    },
   ) {
     const selectedPackage = CREDIT_PACKAGES[data.packageCode];
 
@@ -175,7 +177,7 @@ export class PaymentService {
 
   static async listRecruiterPayments(
     recruiterId: string,
-    query: PaymentListQuery
+    query: PaymentListQuery,
   ) {
     const { company } = await this.getRecruiterCompany(recruiterId);
 
@@ -214,10 +216,7 @@ export class PaymentService {
     };
   }
 
-  static async getRecruiterPaymentById(
-    recruiterId: string,
-    paymentId: string
-  ) {
+  static async getRecruiterPaymentById(recruiterId: string, paymentId: string) {
     const { company } = await this.getRecruiterCompany(recruiterId);
 
     const payment = await prisma.payment.findFirst({
@@ -236,7 +235,7 @@ export class PaymentService {
 
   static constructWebhookEvent(
     rawBody: Buffer,
-    signature: string | string[] | undefined
+    signature: string | string[] | undefined,
   ) {
     if (!signature || Array.isArray(signature)) {
       throw paymentErrors.invalidWebhookSignature();
@@ -246,7 +245,7 @@ export class PaymentService {
       return this.getStripe().webhooks.constructEvent(
         rawBody,
         signature,
-        this.getWebhookSecret()
+        this.getWebhookSecret(),
       );
     } catch (_error) {
       throw paymentErrors.invalidWebhookSignature();
@@ -254,7 +253,7 @@ export class PaymentService {
   }
 
   static async handleWebhookEvent(
-    event: Stripe.Event
+    event: Stripe.Event,
   ): Promise<WebhookProcessResult> {
     switch (event.type) {
       case "checkout.session.completed": {
@@ -267,7 +266,7 @@ export class PaymentService {
         return this.handleCheckoutSessionFailed(
           session,
           "FAILED",
-          "CHECKOUT_SESSION_EXPIRED"
+          "CHECKOUT_SESSION_EXPIRED",
         );
       }
 
@@ -286,7 +285,7 @@ export class PaymentService {
   }
 
   private static async handleCheckoutSessionCompleted(
-    session: Stripe.Checkout.Session
+    session: Stripe.Checkout.Session,
   ): Promise<WebhookProcessResult> {
     const paymentId = session.metadata?.paymentId;
 
@@ -297,7 +296,7 @@ export class PaymentService {
       };
     }
 
-    return prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const payment = await tx.payment.findUnique({
         where: {
           id: paymentId,
@@ -366,16 +365,29 @@ export class PaymentService {
       return {
         processed: true,
         idempotent: false,
+        paymentId: updatedPayment.id,
         payment: updatedPayment,
         companyCredits: updatedCompany.credits,
       };
     });
+
+    const paymentIdForInvoice = result.payment?.id || result.paymentId;
+
+    if (paymentIdForInvoice) {
+      try {
+        await this.sendPaymentSuccessInvoiceEmail(paymentIdForInvoice);
+      } catch (error) {
+        console.error("Failed to send Stripe payment invoice email", error);
+      }
+    }
+
+    return result;
   }
 
   private static async handleCheckoutSessionFailed(
     session: Stripe.Checkout.Session,
     status: PaymentFailureStatus,
-    action: string
+    action: string,
   ): Promise<WebhookProcessResult> {
     const paymentId = session.metadata?.paymentId;
 
@@ -429,7 +441,7 @@ export class PaymentService {
   }
 
   private static async handlePaymentIntentFailed(
-    paymentIntent: Stripe.PaymentIntent
+    paymentIntent: Stripe.PaymentIntent,
   ): Promise<WebhookProcessResult> {
     const paymentId = paymentIntent.metadata?.paymentId;
 
@@ -481,5 +493,92 @@ export class PaymentService {
       processed: true,
       payment: updatedPayment,
     };
+  }
+
+  private static async sendPaymentSuccessInvoiceEmail(paymentId: string) {
+    const payment = await prisma.payment.findUnique({
+      where: {
+        id: paymentId,
+      },
+      include: {
+        company: {
+          include: {
+            owner: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!payment) {
+      return;
+    }
+
+    if (!payment.company?.owner?.email) {
+      return;
+    }
+
+    if (payment.invoiceEmailSentAt) {
+      return;
+    }
+
+    const invoiceNumber =
+      payment.invoiceNumber || InvoiceService.generateInvoiceNumber(payment.id);
+
+    const amount = Number(payment.amount);
+
+    const invoicePdfBuffer = await InvoiceService.generatePaymentInvoicePdf({
+      invoiceNumber,
+      paymentId: payment.id,
+      paymentDate: payment.updatedAt,
+
+      companyName: payment.company.name,
+      recruiterName: payment.company.owner.name,
+      recruiterEmail: payment.company.owner.email,
+
+      paymentMethod: payment.bkashPaymentId ? "bKash" : "Stripe",
+
+      transactionId:
+        payment.bkashTransactionId ||
+        payment.bkashPaymentId ||
+        payment.stripePaymentIntentId ||
+        payment.stripeSessionId,
+
+      creditsPurchased: payment.creditsPurchased,
+      amount,
+      currency: "BDT",
+      status: payment.status,
+    });
+
+    await PaymentEmailService.sendPaymentSuccessEmail({
+      to: payment.company.owner.email,
+      recruiterName: payment.company.owner.name,
+      companyName: payment.company.name,
+      amount,
+      currency: "BDT",
+      creditsPurchased: payment.creditsPurchased,
+      transactionId:
+        payment.bkashTransactionId ||
+        payment.bkashPaymentId ||
+        payment.stripePaymentIntentId ||
+        payment.stripeSessionId,
+      invoiceNumber,
+      invoicePdfBuffer,
+    });
+
+    await prisma.payment.update({
+      where: {
+        id: payment.id,
+      },
+      data: {
+        invoiceNumber,
+        invoiceEmailSentAt: new Date(),
+      },
+    });
   }
 }
