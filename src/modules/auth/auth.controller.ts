@@ -38,4 +38,51 @@ export class AuthController {
 
     return sendResponse(res, 200, "Current user fetched successfully", user);
   }
+
+  static async forgotPassword(
+  req: Request,
+  res: Response
+) {
+  const result = await AuthService.forgotPassword(
+    req.body
+  );
+
+  return sendResponse(
+    res,
+    200,
+    "If an account exists with this email, a password reset OTP has been sent",
+    result
+  );
+}
+static async verifyForgotPasswordOtp(
+  req: Request,
+  res: Response
+) {
+  const result =
+    await AuthService.verifyForgotPasswordOtp(
+      req.body
+    );
+
+  return sendResponse(
+    res,
+    200,
+    "Password reset OTP verified successfully",
+    result
+  );
+}
+static async resetPassword(
+  req: Request,
+  res: Response
+) {
+  const result = await AuthService.resetPassword(
+    req.body
+  );
+
+  return sendResponse(
+    res,
+    200,
+    "Password reset successfully",
+    result
+  );
+}
 }

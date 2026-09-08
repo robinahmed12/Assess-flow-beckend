@@ -25,3 +25,17 @@ export interface LoginInput {
 export interface GoogleLoginInput {
   credential: string;
 }
+
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface VerifyForgotPasswordOtpInput {
+  email: string;
+  otp: string;
+}
+
+export interface ResetPasswordInput {
+  resetToken: string;
+  newPassword: string;
+}

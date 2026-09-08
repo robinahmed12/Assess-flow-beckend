@@ -4,9 +4,12 @@ import { AuthController } from "./auth.controller";
 import { authenticate } from "./auth.middleware";
 
 import {
+  forgotPasswordSchema,
   googleLoginSchema,
   loginSchema,
   registerSchema,
+  resetPasswordSchema,
+  verifyForgotPasswordOtpSchema,
   verifyRegistrationOtpSchema,
 } from "./auth.validation";
 import { validateRequest } from "../../app/common/middleware/validate-request.middleware";
@@ -17,31 +20,45 @@ const router = Router();
 router.post(
   "/register",
   validateRequest(registerSchema),
-  asyncHandler(AuthController.register)
+  asyncHandler(AuthController.register),
 );
 
 router.post(
   "/verify-registration-otp",
   validateRequest(verifyRegistrationOtpSchema),
-  asyncHandler(AuthController.verifyRegistrationOtp)
+  asyncHandler(AuthController.verifyRegistrationOtp),
 );
 
 router.post(
   "/login",
   validateRequest(loginSchema),
-  asyncHandler(AuthController.login)
+  asyncHandler(AuthController.login),
 );
 
 router.post(
   "/google",
   validateRequest(googleLoginSchema),
-  asyncHandler(AuthController.googleLogin)
+  asyncHandler(AuthController.googleLogin),
 );
 
-router.get(
-  "/me",
-  authenticate,
-  asyncHandler(AuthController.getCurrentUser)
+router.get("/me", authenticate, asyncHandler(AuthController.getCurrentUser));
+
+router.post(
+  "/forgot-password",
+  validateRequest(forgotPasswordSchema),
+  asyncHandler(AuthController.forgotPassword),
+);
+
+router.post(
+  "/verify-forgot-password-otp",
+  validateRequest(verifyForgotPasswordOtpSchema),
+  asyncHandler(AuthController.verifyForgotPasswordOtp),
+);
+
+router.post(
+  "/reset-password",
+  validateRequest(resetPasswordSchema),
+  asyncHandler(AuthController.resetPassword),
 );
 
 export default router;

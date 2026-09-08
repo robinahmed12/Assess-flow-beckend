@@ -69,3 +69,50 @@ export const googleLoginSchema = z.object({
 
   query: z.object({}),
 });
+
+export const forgotPasswordSchema = z.object({
+  body: z.object({
+    email: z
+      .string()
+      .email("Invalid email address")
+      .transform((email) => email.toLowerCase()),
+  }),
+
+  params: z.object({}),
+
+  query: z.object({}),
+});
+
+export const verifyForgotPasswordOtpSchema = z.object({
+  body: z.object({
+    email: z
+      .string()
+      .email("Invalid email address")
+      .transform((email) => email.toLowerCase()),
+
+    otp: z
+      .string()
+      .regex(/^\d{6}$/, "OTP must be a 6 digit number"),
+  }),
+
+  params: z.object({}),
+
+  query: z.object({}),
+});
+
+export const resetPasswordSchema = z.object({
+  body: z.object({
+    resetToken: z
+      .string()
+      .min(1, "Reset token is required"),
+
+    newPassword: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(100),
+  }),
+
+  params: z.object({}),
+
+  query: z.object({}),
+});
