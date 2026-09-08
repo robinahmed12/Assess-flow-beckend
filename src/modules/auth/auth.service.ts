@@ -42,6 +42,8 @@ const sendVerificationOtpEmail = async ({
 }) => {
   const templatePath = path.join(
     process.cwd(),
+    "src",
+    "app",
     "template",
     "verify-email.ejs"
   );

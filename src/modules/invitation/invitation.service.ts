@@ -50,7 +50,7 @@ export class InvitationService {
 
     const defaultDeadline = new Date();
     defaultDeadline.setDate(
-      defaultDeadline.getDate() + this.DEFAULT_INVITATION_VALID_DAYS
+      defaultDeadline.getDate() + this.DEFAULT_INVITATION_VALID_DAYS,
     );
 
     return defaultDeadline;
@@ -73,8 +73,10 @@ export class InvitationService {
 
     const templatePath = path.join(
       process.cwd(),
+      "src",
+      "app",
       "template",
-      "invitation-email.ejs"
+      "invitation-email.ejs",
     );
 
     const emailHtml = await ejs.renderFile(templatePath, {
@@ -100,7 +102,7 @@ export class InvitationService {
   static async create(
     recruiterId: string,
     assessmentId: string,
-    data: CreateInvitationInput
+    data: CreateInvitationInput,
   ) {
     const company = await this.getRecruiterCompany(recruiterId);
 
@@ -165,7 +167,7 @@ export class InvitationService {
     if (existingInvitation) {
       throw new AppError(
         "Candidate has already been invited to this assessment",
-        409
+        409,
       );
     }
 

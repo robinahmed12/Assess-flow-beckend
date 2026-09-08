@@ -34,7 +34,7 @@ export class RecruiterService {
     files: {
       companyLicensePaper?: Express.Multer.File[];
       selfDocument?: Express.Multer.File[];
-    }
+    },
   ) {
     const existingUser = await prisma.user.findUnique({
       where: {
@@ -64,12 +64,12 @@ export class RecruiterService {
 
     const companyLicenseUpload = await uploadBufferToCloudinary(
       companyLicensePaper,
-      "recruiter/company-license-papers"
+      "recruiter/company-license-papers",
     );
 
     const selfDocumentUpload = await uploadBufferToCloudinary(
       selfDocument,
-      "recruiter/self-documents"
+      "recruiter/self-documents",
     );
 
     const pendingRegistration: PendingRecruiterRegistration = {
@@ -92,8 +92,10 @@ export class RecruiterService {
 
     const templatePath = path.join(
       process.cwd(),
+      "src",
+      "app",
       "template",
-      "verify-email.ejs"
+      "verify-email.ejs",
     );
 
     const emailHtml = await ejs.renderFile(templatePath, {
@@ -112,7 +114,8 @@ export class RecruiterService {
 
     return {
       email: data.email,
-      message: "OTP sent successfully. Please verify your email to complete recruiter registration.",
+      message:
+        "OTP sent successfully. Please verify your email to complete recruiter registration.",
       expiresInSeconds: RECRUITER_OTP_EXPIRE_SECONDS,
     };
   }
@@ -129,7 +132,7 @@ export class RecruiterService {
     }
 
     const pendingRegistration = JSON.parse(
-      pendingRegistrationJson
+      pendingRegistrationJson,
     ) as PendingRecruiterRegistration;
 
     if (pendingRegistration.otp !== data.otp) {
@@ -179,8 +182,7 @@ export class RecruiterService {
           ownerId: user.id,
 
           // Make sure these fields exist in your Prisma Company model.
-          companyLicensePaperUrl:
-            pendingRegistration.companyLicensePaperUrl,
+          companyLicensePaperUrl: pendingRegistration.companyLicensePaperUrl,
           companyLicensePaperPublicId:
             pendingRegistration.companyLicensePaperPublicId,
           selfDocumentUrl: pendingRegistration.selfDocumentUrl,

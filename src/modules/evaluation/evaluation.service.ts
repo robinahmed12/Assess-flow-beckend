@@ -526,6 +526,8 @@ export class EvaluationService {
 
     const templatePath = path.join(
       process.cwd(),
+      "src",
+      "app",
       "template",
       "evaluation-result-email.ejs",
     );
