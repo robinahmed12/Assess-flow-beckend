@@ -95,7 +95,7 @@ export class RecruiterService {
       "src",
       "app",
       "template",
-      "verify-email.ejs",
+      "email-verify.ejs",
     );
 
     const emailHtml = await ejs.renderFile(templatePath, {
