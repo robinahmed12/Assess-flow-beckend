@@ -10,11 +10,11 @@ A backend-only REST API for creating, managing, delivering, and evaluating techn
 
 | Item | Link |
 |---|---|
-| Live API URL | `TODO: Add deployed API URL` |
-| Repository URL | `TODO: Add repository URL` |
-| Postman Collection | `TODO: Add Postman collection link or file path` |
+| Live API URL | `https://assess-flow-beckend.vercel.app` |
+| Repository URL | `https://github.com/robinahmed12/Assess-flow-beckend` |
+| Postman Collection | `https://documenter.getpostman.com/view/45066546/2sBYAxQ9tc` |
 | ERD | [View ERD](#entity-relationship-diagram-erd) |
-| Video Walkthrough | `TODO: Add walkthrough video link` |
+
 
 ---
 
@@ -24,9 +24,9 @@ A backend-only REST API for creating, managing, delivering, and evaluating techn
 
 | Role | Email | Password |
 |---|---|---|
-| Admin | `admin@example.com` | `Password123!` |
-| Recruiter | `recruiter@example.com` | `Password123!` |
-| Candidate | `candidate@example.com` | `Password123!` |
+| Admin | `admin@assessflow.com` | `Admin@123456` |
+| Recruiter | `john.doe@example.com` | `SecurePass123` |
+| Candidate | `robin.dev.ess@gmail.com` | `Password1234` |
 
 ---
 
@@ -46,7 +46,7 @@ A backend-only REST API for creating, managing, delivering, and evaluating techn
 - express-rate-limit
 - Nodemailer or Resend for emails
 - Postman for API testing and documentation
-- Render for deployment
+- vercel for deployment
 
 ---
 
