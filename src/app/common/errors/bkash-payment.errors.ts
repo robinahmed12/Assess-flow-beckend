@@ -1,11 +1,11 @@
-export class BkashPaymentError extends Error {
-  statusCode: number;
-  details?: unknown;
+import { AppError } from "./app-error";
+
+export class BkashPaymentError extends AppError {
+  public readonly details?: unknown;
 
   constructor(statusCode: number, message: string, details?: unknown) {
-    super(message);
+    super(message, statusCode);
     this.name = "BkashPaymentError";
-    this.statusCode = statusCode;
     this.details = details;
   }
 }

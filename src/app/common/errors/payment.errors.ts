@@ -1,10 +1,10 @@
-export class PaymentHttpError extends Error {
-  statusCode: number;
-  code: string;
+import { AppError } from "./app-error";
+
+export class PaymentHttpError extends AppError {
+  public readonly code: string;
 
   constructor(statusCode: number, code: string, message: string) {
-    super(message);
-    this.statusCode = statusCode;
+    super(message, statusCode);
     this.code = code;
   }
 }

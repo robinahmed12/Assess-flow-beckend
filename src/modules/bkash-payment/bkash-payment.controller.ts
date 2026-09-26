@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { BkashPaymentService } from "./bkash-payment.service";
 import { sendResponse } from "../../app/common/responses/api-response";
+import config from "../../app/config";
 
 export class BkashPaymentController {
   static async createCheckout(req: Request, res: Response) {
@@ -13,19 +14,6 @@ export class BkashPaymentController {
       res,
       201,
       "bKash payment created successfully.",
-      result,
-    );
-  }
-
-  static async executePayment(req: Request, res: Response) {
-    const result = await BkashPaymentService.executePayment(
-      req.body.paymentID,
-    );
-
-    return sendResponse(
-      res,
-      200,
-      "bKash payment executed successfully.",
       result,
     );
   }
@@ -48,6 +36,15 @@ export class BkashPaymentController {
       req.query.status,
       req.query.paymentID,
     );
+
+    const frontendUrl = config.frontend_url || "http://localhost:3000";
+    const paymentId = result?.payment?.id;
+
+    if (paymentId) {
+      return res.redirect(
+        `${frontendUrl}/payments/bkash-success?payment=${paymentId}`
+      );
+    }
 
     return sendResponse(
       res,

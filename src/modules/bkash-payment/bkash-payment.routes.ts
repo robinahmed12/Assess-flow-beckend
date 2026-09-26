@@ -4,7 +4,6 @@ import { UserRole } from "@prisma/client";
 import { BkashPaymentController } from "./bkash-payment.controller";
 import {
   createBkashPaymentSchema,
-  executeBkashPaymentSchema,
   listPaymentsSchema,
   paymentIdParamSchema,
   queryBkashPaymentSchema,
@@ -23,13 +22,6 @@ bkashPaymentCallbackRouter.get(
 );
 
 const router = Router();
-
-// These routes were public in the existing implementation.
-router.post(
-  "/bkash/execute",
-  validateRequest(executeBkashPaymentSchema),
-  asyncHandler(BkashPaymentController.executePayment),
-);
 
 router.post(
   "/bkash/query",

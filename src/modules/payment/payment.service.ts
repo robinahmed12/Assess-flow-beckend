@@ -551,7 +551,7 @@ export class PaymentService {
 
       creditsPurchased: payment.creditsPurchased,
       amount,
-      currency: "BDT",
+      currency: payment.bkashPaymentId ? "BDT" : "USD",
       status: payment.status,
     });
 
@@ -560,7 +560,7 @@ export class PaymentService {
       recruiterName: payment.company.owner.name,
       companyName: payment.company.name,
       amount,
-      currency: "BDT",
+      currency: payment.bkashPaymentId ? "BDT" : "USD",
       creditsPurchased: payment.creditsPurchased,
       transactionId:
         payment.bkashTransactionId ||

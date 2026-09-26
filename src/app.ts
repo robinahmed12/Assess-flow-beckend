@@ -38,6 +38,8 @@ app.use(
   }),
 );
 
+app.use("/api/v1/stripe-payments", paymentWebhookRouter);
+
 app.use(express.json());
 
 app.get("/api/v1/health", (_req: Request, res: Response) => {
@@ -59,7 +61,6 @@ app.use("/api/v1/invitations", invitationRouter);
 app.use("/api/v1/candidate", candidateRouter);
 app.use("/api/v1/attempts", attemptRouter);
 app.use("/api/v1/evaluation", evaluationRouter);
-app.use("/api/v1/stripe-payments", paymentWebhookRouter);
 app.use("/api/v1/stripe-payments", paymentRouter);
 app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/bkash-payments", bkashPaymentCallbackRouter);
