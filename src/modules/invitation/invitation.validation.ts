@@ -21,8 +21,6 @@ export const createInvitationSchema = z.object({
 });
 
 export const assessmentInvitationIdSchema = z.object({
-  body: z.object({}),
-
   params: z.object({
     id: z.string().uuid("Invalid assessment ID"),
   }),
@@ -31,8 +29,6 @@ export const assessmentInvitationIdSchema = z.object({
 });
 
 export const invitationTokenSchema = z.object({
-  body: z.object({}),
-
   params: z.object({
     token: z.string().min(32, "Invalid invitation token"),
   }),

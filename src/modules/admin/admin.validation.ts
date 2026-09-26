@@ -7,8 +7,6 @@ const paginationQuery = {
 };
 
 export const listUsersSchema = z.object({
-  body: z.object({}),
-
   params: z.object({}),
 
   query: z.object({
@@ -41,8 +39,6 @@ export const updateUserStatusSchema = z.object({
 });
 
 export const auditLogsSchema = z.object({
-  body: z.object({}),
-
   params: z.object({}),
 
   query: z.object({
@@ -65,8 +61,6 @@ export const auditLogsSchema = z.object({
 });
 
 export const adminPaymentsSchema = z.object({
-  body: z.object({}),
-
   params: z.object({}),
 
   query: z.object({

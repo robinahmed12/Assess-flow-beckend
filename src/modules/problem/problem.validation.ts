@@ -115,7 +115,6 @@ export const updateProblemSchema = z
   });
 
 export const problemIdSchema = z.object({
-  body: z.object({}),
   params: z.object({
     id: z.string().uuid("Invalid problem ID"),
   }),

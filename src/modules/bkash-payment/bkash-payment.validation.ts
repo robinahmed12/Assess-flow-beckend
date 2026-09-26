@@ -28,7 +28,6 @@ export const queryBkashPaymentSchema = z.object({
 });
 
 export const bkashCallbackSchema = z.object({
-  body: z.object({}),
   params: z.object({}),
   query: z.object({
     status: z.string().min(1, "Callback status is required"),
@@ -37,7 +36,6 @@ export const bkashCallbackSchema = z.object({
 });
 
 export const listPaymentsSchema = z.object({
-  body: z.object({}),
   params: z.object({}),
   query: z.object({
     page: z.coerce.number().int().min(1).default(1),
@@ -49,7 +47,6 @@ export const listPaymentsSchema = z.object({
 });
 
 export const paymentIdParamSchema = z.object({
-  body: z.object({}),
   params: z.object({
     id: z.string().uuid("Invalid payment ID"),
   }),

@@ -262,7 +262,7 @@ export class AssessmentService {
           }),
 
           ...(data.durationMinutes !== undefined && {
-            durationMinutes: data.durationMinutes,
+            duration: data.durationMinutes,
           }),
 
           ...(data.passingScore !== undefined && {

@@ -10,8 +10,6 @@ export const createCheckoutSchema = z.object({
 });
 
 export const listPaymentsSchema = z.object({
-  body: z.object({}),
-
   params: z.object({}),
 
   query: z.object({
@@ -22,8 +20,6 @@ export const listPaymentsSchema = z.object({
 });
 
 export const paymentIdParamSchema = z.object({
-  body: z.object({}),
-
   params: z.object({
     id: z.string().uuid("Invalid payment id"),
   }),

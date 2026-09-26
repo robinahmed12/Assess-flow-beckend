@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 export const attemptIdSchema = z.object({
-  body: z.object({}),
   params: z.object({
     id: z.string().uuid("Invalid attempt ID"),
   }),
