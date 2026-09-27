@@ -32,26 +32,50 @@ export class BkashPaymentController {
   }
 
   static async handleCallback(req: Request, res: Response) {
-    const result = await BkashPaymentService.handleCallback(
-      req.query.status,
-      req.query.paymentID,
-    );
+    const frontendUrl = (config.frontend_url || "http://localhost:3000")
+      .trim()
+      .replace(/\/+$/, "");
 
-    const frontendUrl = config.frontend_url || "http://localhost:3000";
-    const paymentId = result?.payment?.id;
+    const status =
+      typeof req.query.status === "string" ? req.query.status.toLowerCase() : "";
+    const paymentID =
+      typeof req.query.paymentID === "string" ? req.query.paymentID : "";
 
-    if (paymentId) {
-      return res.redirect(
-        `${frontendUrl}/payments/bkash-success?payment=${paymentId}`
+    const redirectToCancel = (reason: string) =>
+      res.redirect(
+        `${frontendUrl}/payments/cancel?reason=${encodeURIComponent(reason)}`,
       );
-    }
 
-    return sendResponse(
-      res,
-      200,
-      "bKash callback processed successfully.",
-      result,
-    );
+    try {
+      const result = (await BkashPaymentService.handleCallback(
+        req.query.status,
+        req.query.paymentID,
+      )) as { paymentId?: string; payment?: { id?: string } } | undefined;
+
+      // The success branch returns `paymentId`; the cancel branch returns
+      // `payment` (whose status is FAILED), so status must drive the branch.
+      const paymentId = result?.paymentId ?? result?.payment?.id;
+
+      if (status === "success" && paymentId) {
+        return res.redirect(
+          `${frontendUrl}/payments/bkash-success?payment=${encodeURIComponent(paymentId)}`,
+        );
+      }
+
+      if (status === "cancel" || status === "cancelled") {
+        return redirectToCancel("cancelled");
+      }
+
+      return redirectToCancel("failed");
+    } catch (error) {
+      console.error("[bkash] callback processing failed", {
+        status,
+        paymentID,
+        error,
+      });
+
+      return redirectToCancel("error");
+    }
   }
 
   static async listPayments(req: Request, res: Response) {

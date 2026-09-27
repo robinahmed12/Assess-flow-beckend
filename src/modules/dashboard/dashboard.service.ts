@@ -564,7 +564,7 @@ export class DashboardService {
         },
         _sum: {
           amount: true,
-          creditsGranted: true,
+          creditsPurchased: true,
         },
       }),
 
@@ -771,7 +771,7 @@ export class DashboardService {
           this.toNumber(paymentAggregate._sum.amount).toFixed(2),
         ),
         creditsPurchased: this.toNumber(
-          paymentAggregate._sum.creditsGranted,
+          paymentAggregate._sum.creditsPurchased,
         ),
       },
 
@@ -906,7 +906,7 @@ export class DashboardService {
         },
         _sum: {
           amount: true,
-          creditsGranted: true,
+          creditsPurchased: true,
         },
       }),
 
@@ -935,13 +935,13 @@ export class DashboardService {
         select: {
           id: true,
           companyId: true,
-          recruiterId: true,
-          providerReference: true,
           status: true,
           amount: true,
-          creditsGranted: true,
+          creditsPurchased: true,
+          stripeSessionId: true,
+          bkashPaymentId: true,
           createdAt: true,
-          completedAt: true,
+          updatedAt: true,
         },
       }),
     ]);
@@ -1052,7 +1052,7 @@ export class DashboardService {
           this.toNumber(successfulPaymentAggregate._sum.amount).toFixed(2),
         ),
         totalCreditsSold: this.toNumber(
-          successfulPaymentAggregate._sum.creditsGranted,
+          successfulPaymentAggregate._sum.creditsPurchased,
         ),
       },
 

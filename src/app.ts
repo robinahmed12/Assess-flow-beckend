@@ -65,6 +65,12 @@ app.use("/api/v1/stripe-payments", paymentRouter);
 app.use("/api/v1/admin", adminRouter);
 app.use("/api/v1/bkash-payments", bkashPaymentCallbackRouter);
 app.use("/api/v1/bkash-payments", bkashPaymentRouter);
+/*
+ | The bKash merchant dashboard currently points at the legacy misspelled
+ | path "/api/v1/baksh-payments/bkash/callback". Keep that URL working so
+ | in-flight callbacks do not 404. Remove once the dashboard is corrected.
+ */
+app.use("/api/v1/baksh-payments", bkashPaymentCallbackRouter);
 app.use("/api/v1", bkashPaymentCallbackRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
