@@ -73,6 +73,42 @@ const decimalToNumber = (value: unknown): number => {
   return Number(value);
 };
 
+const DASHBOARD_STATS_TRANSACTION_OPTIONS = {
+  timeout: 30_000,
+  maxWait: 10_000,
+} as const;
+
+/**
+ * Flattens a Prisma `groupBy` result into a plain `{ value: count }` map so each
+ * breakdown can be read by enum key instead of scanning the raw row array.
+ */
+interface GroupedCountRow {
+  _count?: { _all?: number };
+  [key: string]: unknown;
+}
+
+const toCountMap = <TKey extends string>(
+  rows: ReadonlyArray<GroupedCountRow>,
+  key: TKey,
+): Record<string, number> => {
+  const counts: Record<string, number> = {};
+
+  for (const row of rows) {
+    const value = row[key];
+
+    if (typeof value !== "string") continue;
+
+    const count = row._count?._all ?? 0;
+
+    counts[value] = typeof count === "number" ? count : 0;
+  }
+
+  return counts;
+};
+
+const sumCounts = (counts: Record<string, number>): number =>
+  Object.values(counts).reduce((total, count) => total + count, 0);
+
 export class AdminService {
   static async listUsers(
     query: ListUsersQuery,
@@ -84,7 +120,6 @@ export class AdminService {
 
     const where: Prisma.UserWhereInput = {
       ...(query.role ? { role: query.role } : {}),
-
       ...(query.status ? { status: query.status } : {}),
 
       ...(query.q
@@ -182,170 +217,49 @@ export class AdminService {
 
   static async getDashboardStats() {
     const [
-      totalUsers,
-      activeUsers,
-      suspendedUsers,
-      admins,
-      recruiters,
-      candidates,
-
+      usersByStatus,
+      usersByRole,
       totalCompanies,
-
       totalProblems,
-
-      totalAssessments,
-      draftAssessments,
-      publishedAssessments,
-      closedAssessments,
-      archivedAssessments,
-
-      totalInvitations,
-      pendingInvitations,
-      acceptedInvitations,
-      revokedInvitations,
-
-      totalAttempts,
-      inProgressAttempts,
-      submittedAttempts,
-      evaluatedAttempts,
-      expiredAttempts,
-
-      totalPayments,
+      assessmentsByStatus,
+      invitationsByStatus,
+      attemptsByStatus,
+      paymentsByStatus,
       succeededPayments,
-      failedPayments,
-      pendingPayments,
+    ] = await prisma.$transaction(
+      [
+        prisma.user.groupBy({ by: ["status"], _count: { _all: true } }),
+        prisma.user.groupBy({ by: ["role"], _count: { _all: true } }),
+        prisma.company.count(),
+        prisma.problem.count(),
+        prisma.assessment.groupBy({ by: ["status"], _count: { _all: true } }),
+        prisma.invitation.groupBy({ by: ["status"], _count: { _all: true } }),
+        prisma.attempt.groupBy({ by: ["status"], _count: { _all: true } }),
+        prisma.payment.groupBy({ by: ["status"], _count: { _all: true } }),
+        prisma.payment.aggregate({
+          where: { status: PaymentStatus.SUCCEEDED },
+          _sum: { amount: true, creditsPurchased: true },
+        }),
+      ],
+      DASHBOARD_STATS_TRANSACTION_OPTIONS,
+    );
 
-      paymentsAggregate,
-    ] = await prisma.$transaction([
-      prisma.user.count(),
-      prisma.user.count({
-        where: {
-          status: UserStatus.ACTIVE,
-        },
-      }),
-      prisma.user.count({
-        where: {
-          status: UserStatus.SUSPENDED,
-        },
-      }),
-      prisma.user.count({
-        where: {
-          role: UserRole.ADMIN,
-        },
-      }),
-      prisma.user.count({
-        where: {
-          role: UserRole.RECRUITER,
-        },
-      }),
-      prisma.user.count({
-        where: {
-          role: UserRole.CANDIDATE,
-        },
-      }),
-
-      prisma.company.count(),
-
-      prisma.problem.count(),
-
-      prisma.assessment.count(),
-      prisma.assessment.count({
-        where: {
-          status: AssessmentStatus.DRAFT,
-        },
-      }),
-      prisma.assessment.count({
-        where: {
-          status: AssessmentStatus.PUBLISHED,
-        },
-      }),
-      prisma.assessment.count({
-        where: {
-          status: AssessmentStatus.CLOSED,
-        },
-      }),
-      prisma.assessment.count({
-        where: {
-          status: AssessmentStatus.ARCHIVED,
-        },
-      }),
-
-      prisma.invitation.count(),
-      prisma.invitation.count({
-        where: {
-          status: InvitationStatus.PENDING,
-        },
-      }),
-      prisma.invitation.count({
-        where: {
-          status: InvitationStatus.ACCEPTED,
-        },
-      }),
-      prisma.invitation.count({
-        where: {
-          status: InvitationStatus.REVOKED,
-        },
-      }),
-
-      prisma.attempt.count(),
-      prisma.attempt.count({
-        where: {
-          status: AttemptStatus.IN_PROGRESS,
-        },
-      }),
-      prisma.attempt.count({
-        where: {
-          status: AttemptStatus.SUBMITTED,
-        },
-      }),
-      prisma.attempt.count({
-        where: {
-          status: AttemptStatus.EVALUATED,
-        },
-      }),
-      prisma.attempt.count({
-        where: {
-          status: AttemptStatus.EXPIRED,
-        },
-      }),
-
-      prisma.payment.count(),
-      prisma.payment.count({
-        where: {
-          status: PaymentStatus.SUCCEEDED,
-        },
-      }),
-      prisma.payment.count({
-        where: {
-          status: PaymentStatus.FAILED,
-        },
-      }),
-      prisma.payment.count({
-        where: {
-          status: PaymentStatus.PENDING,
-        },
-      }),
-
-      prisma.payment.aggregate({
-        where: {
-          status: PaymentStatus.SUCCEEDED,
-        },
-        _sum: {
-          amount: true,
-          creditsPurchased: true,
-        },
-      }),
-    ]);
+    const userStatusCounts = toCountMap(usersByStatus, "status");
+    const userRoleCounts = toCountMap(usersByRole, "role");
+    const assessmentCounts = toCountMap(assessmentsByStatus, "status");
+    const invitationCounts = toCountMap(invitationsByStatus, "status");
+    const attemptCounts = toCountMap(attemptsByStatus, "status");
+    const paymentCounts = toCountMap(paymentsByStatus, "status");
 
     return {
       users: {
-        total: totalUsers,
-        active: activeUsers,
-        suspended: suspendedUsers,
+        total: sumCounts(userStatusCounts),
+        active: userStatusCounts[UserStatus.ACTIVE] ?? 0,
+        suspended: userStatusCounts[UserStatus.SUSPENDED] ?? 0,
         byRole: {
-          admin: admins,
-          recruiter: recruiters,
-          candidate: candidates,
+          admin: userRoleCounts[UserRole.ADMIN] ?? 0,
+          recruiter: userRoleCounts[UserRole.RECRUITER] ?? 0,
+          candidate: userRoleCounts[UserRole.CANDIDATE] ?? 0,
         },
       },
 
@@ -358,35 +272,35 @@ export class AdminService {
       },
 
       assessments: {
-        total: totalAssessments,
-        draft: draftAssessments,
-        published: publishedAssessments,
-        closed: closedAssessments,
-        archived: archivedAssessments,
+        total: sumCounts(assessmentCounts),
+        draft: assessmentCounts[AssessmentStatus.DRAFT] ?? 0,
+        published: assessmentCounts[AssessmentStatus.PUBLISHED] ?? 0,
+        closed: assessmentCounts[AssessmentStatus.CLOSED] ?? 0,
+        archived: assessmentCounts[AssessmentStatus.ARCHIVED] ?? 0,
       },
 
       invitations: {
-        total: totalInvitations,
-        pending: pendingInvitations,
-        accepted: acceptedInvitations,
-        revoked: revokedInvitations,
+        total: sumCounts(invitationCounts),
+        pending: invitationCounts[InvitationStatus.PENDING] ?? 0,
+        accepted: invitationCounts[InvitationStatus.ACCEPTED] ?? 0,
+        revoked: invitationCounts[InvitationStatus.REVOKED] ?? 0,
       },
 
       attempts: {
-        total: totalAttempts,
-        inProgress: inProgressAttempts,
-        submitted: submittedAttempts,
-        evaluated: evaluatedAttempts,
-        expired: expiredAttempts,
+        total: sumCounts(attemptCounts),
+        inProgress: attemptCounts[AttemptStatus.IN_PROGRESS] ?? 0,
+        submitted: attemptCounts[AttemptStatus.SUBMITTED] ?? 0,
+        evaluated: attemptCounts[AttemptStatus.EVALUATED] ?? 0,
+        expired: attemptCounts[AttemptStatus.EXPIRED] ?? 0,
       },
 
       payments: {
-        total: totalPayments,
-        pending: pendingPayments,
-        succeeded: succeededPayments,
-        failed: failedPayments,
-        successfulAmount: decimalToNumber(paymentsAggregate._sum.amount),
-        creditsPurchased: paymentsAggregate._sum.creditsPurchased ?? 0,
+        total: sumCounts(paymentCounts),
+        pending: paymentCounts[PaymentStatus.PENDING] ?? 0,
+        succeeded: paymentCounts[PaymentStatus.SUCCEEDED] ?? 0,
+        failed: paymentCounts[PaymentStatus.FAILED] ?? 0,
+        successfulAmount: decimalToNumber(succeededPayments._sum.amount),
+        creditsPurchased: succeededPayments._sum.creditsPurchased ?? 0,
       },
     };
   }

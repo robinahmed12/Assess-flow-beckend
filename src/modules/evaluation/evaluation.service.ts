@@ -331,8 +331,11 @@ export class EvaluationService {
   ) {
     await this.assertRecruiterOwnsAssessment(userId, assessmentId);
 
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 20;
+    // `req.query` values arrive as strings and `validateRequest` only rejects bad
+    // input without writing the coerced result back, so pagination is normalised
+    // here. Without this, `take` reaches Prisma as a string and throws.
+    const page = Math.max(1, Number(query.page) || 1);
+    const limit = Math.min(Math.max(1, Number(query.limit) || 20), 100);
     const skip = (page - 1) * limit;
 
     const where: Prisma.AttemptWhereInput = {

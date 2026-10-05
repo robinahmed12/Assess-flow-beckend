@@ -56,8 +56,8 @@ export class InvitationService {
     return defaultDeadline;
   }
 
-  private static buildInvitationLink(token: string) {
-    return `${config.frontend_url}/invitations/accept?token=${token}`;
+  private static buildInvitationLink(_token: string) {
+    return `${config.frontend_url}/candidate/attempts`;
   }
 
   private static async sendInvitationEmail(params: {
