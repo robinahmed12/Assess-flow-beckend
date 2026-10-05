@@ -7,6 +7,8 @@ model Answer {
 
   score Float?
 
+  feedback String? @db.Text
+
   evaluatedAt DateTime?
 
   attemptId String

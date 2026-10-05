@@ -313,6 +313,7 @@ export class EvaluationService {
                 answerText: answer.answerText,
                 selectedOptionId: answer.selectedOptionId,
                 score: answer.score,
+                feedback: answer.feedback,
                 evaluatedAt: answer.evaluatedAt,
               }
             : null,
@@ -466,6 +467,8 @@ export class EvaluationService {
       );
     }
 
+    const feedback = data.feedback?.trim() ? data.feedback.trim() : null;
+
     return prisma.$transaction(async (tx) => {
       const updatedAnswer = await tx.answer.update({
         where: {
@@ -473,6 +476,7 @@ export class EvaluationService {
         },
         data: {
           score: data.score,
+          feedback,
           evaluatedAt: new Date(),
         },
         include: {
@@ -491,8 +495,7 @@ export class EvaluationService {
           problemType: updatedAnswer.problem.type,
           score: data.score,
           maxScore,
-          feedback: data.feedback ?? null,
-          note: "Current schema has no Answer.feedback column; feedback is stored in AuditLog.metadata only.",
+          feedback,
         },
       });
 
@@ -501,8 +504,8 @@ export class EvaluationService {
         attemptId: updatedAnswer.attemptId,
         problemId: updatedAnswer.problemId,
         score: updatedAnswer.score,
+        feedback: updatedAnswer.feedback,
         evaluatedAt: updatedAnswer.evaluatedAt,
-        feedback: data.feedback ?? null,
       };
     });
   }
@@ -878,6 +881,7 @@ export class EvaluationService {
         problemId: answer.problemId,
         problemType: answer.problem.type,
         score: answer.score,
+        feedback: answer.feedback,
         evaluatedAt: answer.evaluatedAt,
       })),
     };

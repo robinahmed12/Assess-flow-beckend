@@ -326,7 +326,17 @@ export class AuthService {
         idToken: data.credential,
         audience: config.google_client_id,
       });
-    } catch {
+    } catch (error) {
+      // The client id is compared for exact equality against the token's `aud`,
+      // so stray whitespace here fails with an opaque "Invalid Google token".
+      if (!config.google_client_id?.trim()) {
+        throw new AppError("Google login is not configured", 500);
+      }
+
+      // Never surface Google's raw verification error, but do keep it on the
+      // server: this catch previously discarded the only useful diagnostic.
+      console.error("googleLogin: verifyIdToken failed", error);
+
       throw new AppError("Invalid Google token", 401);
     }
 
